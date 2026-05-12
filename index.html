@@ -6,148 +6,95 @@
 <title>Chat Worlds</title>
 
 <style>
-/* Même style que précédemment (je garde le fond Omori) */
 body{
   margin:0;
-  font-family: 'Segoe UI', Arial, sans-serif;
-  background: #0a0a1f url('https://images.unsplash.com/photo-1617791160588-241658c0f566') center/cover no-repeat fixed;
+  font-family:Arial;
+  background:#0A0A0A;
   color:white;
-  height:100vh;
-  overflow:hidden;
 }
 
+/* LOGIN */
 #login{
   display:flex;
   flex-direction:column;
   align-items:center;
   justify-content:center;
   height:100vh;
-  gap:15px;
-  background:rgba(10,10,31,0.9);
 }
 
 .card{
-  background:rgba(30,30,50,0.95);
-  padding:15px 20px;
-  border-radius:12px;
-  cursor:pointer;
-  width:220px;
-  text-align:center;
-  font-size:18px;
-  transition:0.3s;
-}
-.card:hover{ transform:scale(1.08); }
-
-#app{
-  display:none;
-  height:100vh;
-  flex-direction:column;
-}
-
-#header{
-  background:rgba(20,20,40,0.95);
+  background:#141414;
   padding:12px;
-  border-bottom:1px solid #444;
+  margin:8px;
+  border-radius:10px;
+  cursor:pointer;
+  width:180px;
+  text-align:center;
 }
 
-#messages{
-  flex:1;
-  overflow-y:auto;
-  padding:15px;
-  display:flex;
-  flex-direction:column;
-  gap:12px;
-  background:rgba(10,10,31,0.75);
-}
+/* APP */
+#app{display:none;padding:12px}
 
-.message{
-  max-width:78%;
-  padding:10px 14px;
-  border-radius:18px;
-  word-wrap:break-word;
-}
-
-.message.sent{
-  background:#4ECDC4;
-  color:black;
-  align-self:flex-end;
-}
-
-.message.received{
-  background:#2a2a3a;
-  align-self:flex-start;
-}
-
-.message .name{
-  font-size:12px;
-  margin-bottom:4px;
-  opacity:0.9;
-}
-
-.speak-btn {
-  background: none;
-  border: none;
-  font-size: 18px;
-  cursor: pointer;
-  margin-left: 8px;
-  opacity: 0.7;
-}
-.speak-btn:hover { opacity: 1; transform: scale(1.3); }
-
+/* ROOM BAR */
 .roomBar{
   display:flex;
-  gap:8px;
+  gap:10px;
   overflow-x:auto;
-  padding:10px;
-  background:rgba(20,20,40,0.95);
+  padding:10px 0;
+  margin-bottom:10px;
 }
 
 .roomBtn{
-  padding:10px 16px;
-  border-radius:25px;
+  padding:10px 14px;
+  border-radius:20px;
   border:none;
   cursor:pointer;
+  background:#1a1a1a;
   color:white;
-  font-weight:bold;
+  transition:0.2s;
   white-space:nowrap;
 }
-.roomBtn.active{transform:scale(1.08);}
 
-.serie{background:#FF6B6B;}
-.jeux{background:#4ECDC4; color:black;}
-.futur{background:#FFD93D; color:black;}
-
-#inputArea{
-  padding:10px;
-  background:rgba(20,20,40,0.95);
-  display:flex;
-  gap:8px;
-  align-items:center;
+.roomBtn.active{
+  background:#4ECDC4;
+  color:black;
+  transform:scale(1.05);
 }
 
+/* CHAT */
 textarea{
-  flex:1;
-  padding:12px;
-  background:#1f1f2f;
+  width:100%;
+  padding:10px;
+  background:#141414;
   color:white;
   border:none;
-  border-radius:20px;
-  resize:none;
-  max-height:120px;
+  border-radius:10px;
 }
 
-#voiceHold{
-  background:#333;
-  color:white;
-  padding:12px 18px;
-  border-radius:50px;
+button{
+  padding:10px;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+  margin-top:5px;
+}
+
+.note{
+  background:#141414;
+  padding:10px;
+  margin:10px 0;
+  border-radius:10px;
+}
+
+.voiceBtn{
+  margin-left:8px;
   cursor:pointer;
 }
-#voiceHold.active{
-  background:#FF6B6B;
-  animation: pulse 1.2s infinite;
+
+audio{
+  width:100%;
+  margin-top:8px;
 }
-@keyframes pulse { 0%{transform:scale(1)} 50%{transform:scale(1.12)} }
 </style>
 </head>
 
@@ -156,195 +103,183 @@ textarea{
 <!-- LOGIN -->
 <div id="login">
   <h2>Choisis ton perso</h2>
-  <div class="card" data-id="user1">🔥 Draco</div>
-  <div class="card" data-id="user2">💎 Emer</div>
-  <div class="card" data-id="user3">⚡ Liam</div>
+
+  <div class="card" onclick="login('user1')">🔥 Draco</div>
+  <div class="card" onclick="login('user2')">💎 Emer</div>
+  <div class="card" onclick="login('user3')">⚡ Liam</div>
 </div>
 
 <!-- APP -->
 <div id="app">
-  <div id="header">
-    <div id="user"></div>
-  </div>
 
-  <div class="roomBar">
-    <button class="roomBtn serie active" onclick="switchRoom('serie',this)">🎬 Série</button>
-    <button class="roomBtn jeux" onclick="switchRoom('jeux',this)">🎮 Jeux</button>
-    <button class="roomBtn futur" onclick="switchRoom('futur',this)">🚀 Futur</button>
-  </div>
+<h3 id="user"></h3>
 
-  <div id="messages"></div>
+<!-- ROOMS (MODERN UI) -->
+<div class="roomBar">
+  <button class="roomBtn active" onclick="switchRoom('serie',this)">🎬 Série</button>
+  <button class="roomBtn" onclick="switchRoom('jeux',this)">🎮 Jeux</button>
+  <button class="roomBtn" onclick="switchRoom('futur',this)">🚀 Futur</button>
+</div>
 
-  <div id="inputArea">
-    <textarea id="text" placeholder="Écris un message..."></textarea>
-    <button onclick="send()">Envoyer</button>
-    <div id="voiceHold">🎤</div>
-  </div>
+<textarea id="text" placeholder="Écris un message..."></textarea>
+
+<button onclick="send()">Envoyer</button>
+<button onclick="startVoice()">🎤 Enregistrer vocal</button>
+
+<div id="notes"></div>
+
 </div>
 
 <script type="module">
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-const app = initializeApp({ databaseURL: "https://block-notes-a-3-default-rtdb.firebaseio.com/" });
+const app = initializeApp({
+  databaseURL:"https://block-notes-a-3-default-rtdb.firebaseio.com/"
+});
+
 const db = getDatabase(app);
 
 const rooms = {
-  serie: ref(db, "serie"),
-  jeux: ref(db, "jeux"),
-  futur: ref(db, "futur")
+  serie: ref(db,"serie"),
+  jeux: ref(db,"jeux"),
+  futur: ref(db,"futur")
 };
 
 const USERS = {
-  user1: {name:"Draco", color:"#FF6B6B"},
-  user2: {name:"Emer", color:"#4ECDC4"},
-  user3: {name:"Liam", color:"#FFD93D"}
+  user1:{name:"Draco",color:"#FF6B6B"},
+  user2:{name:"Emer",color:"#4ECDC4"},
+  user3:{name:"Liam",color:"#FFD93D"}
 };
 
-let currentUser = null;
-let currentRoom = "serie";
-let recorder, audioStream, chunks = [];
-let recording = false;
-let unsubscribe = null;
+let currentUser=null;
+let currentRoom="serie";
+let recorder;
+let chunks=[];
 
-// Demande les notifications au login
-async function requestNotifications() {
-  if ("Notification" in window) {
-    if (Notification.permission === "default") {
-      await Notification.requestPermission();
-    }
-  }
-}
+/* LOGIN */
+window.login=(id)=>{
+  currentUser={id,...USERS[id]};
 
-// ====================== LOGIN ======================
-document.querySelectorAll('#login .card').forEach(card => {
-  card.addEventListener('click', () => login(card.getAttribute('data-id')));
-});
+  document.getElementById("login").style.display="none";
+  document.getElementById("app").style.display="block";
 
-window.login = (id) => {
-  currentUser = { id, ...USERS[id] };
-  document.getElementById("login").style.display = "none";
-  document.getElementById("app").style.display = "flex";
-  document.getElementById("user").innerHTML = `<h3 style="color:${currentUser.color};margin:0;">${currentUser.name}</h3>`;
-  
-  requestNotifications();
+  document.getElementById("user").innerHTML=
+    `<span style="color:${currentUser.color}">${currentUser.name}</span>`;
+
   listenRoom();
 };
 
-// ====================== SWITCH ROOM ======================
-window.switchRoom = (room, btn) => {
-  currentRoom = room;
-  document.querySelectorAll(".roomBtn").forEach(b => b.classList.remove("active"));
-  if(btn) btn.classList.add("active");
-  listenRoom();
-};
+/* SWITCH ROOM (UI FIX) */
+window.switchRoom=(room,btn)=>{
+  currentRoom=room;
 
-// ====================== ENVOI ======================
-window.send = () => {
-  const text = document.getElementById("text").value.trim();
-  if(!text || !currentUser) return;
-
-  push(rooms[currentRoom], {
-    type: "text",
-    text,
-    name: currentUser.name,
-    color: currentUser.color,
-    time: Date.now()
+  document.querySelectorAll(".roomBtn").forEach(b=>{
+    b.classList.remove("active");
   });
 
-  document.getElementById("text").value = "";
+  if(btn) btn.classList.add("active");
+
+  listenRoom();
 };
 
-// ====================== VOCAL ======================
-const holdBtn = document.getElementById("voiceHold");
-holdBtn.addEventListener("mousedown", startRecording);
-holdBtn.addEventListener("touchstart", startRecording);
-holdBtn.addEventListener("mouseup", stopRecording);
-holdBtn.addEventListener("mouseleave", stopRecording);
-holdBtn.addEventListener("touchend", stopRecording);
+/* SEND TEXT */
+window.send=()=>{
+  const text=document.getElementById("text").value;
+  if(!text||!currentUser)return;
 
-async function startRecording() { /* même code */ 
-  if (recording || !currentUser) return;
-  try {
-    recording = true; holdBtn.classList.add("active");
-    audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    recorder = new MediaRecorder(audioStream); chunks = [];
-    recorder.ondataavailable = e => chunks.push(e.data);
-    recorder.start();
-  } catch(e) { alert("Impossible d'accéder au micro"); recording=false; holdBtn.classList.remove("active"); }
-}
+  push(rooms[currentRoom],{
+    text,
+    name:currentUser.name,
+    color:currentUser.color,
+    id:currentUser.id,
+    time:Date.now()
+  });
 
-function stopRecording() {
-  if (!recording || !recorder) return;
-  recording = false; holdBtn.classList.remove("active");
-  recorder.stop();
-  recorder.onstop = () => {
-    const blob = new Blob(chunks, { type: "audio/webm" });
-    const url = URL.createObjectURL(blob);
-    push(rooms[currentRoom], { type: "voice", audioUrl: url, name: currentUser.name, color: currentUser.color, time: Date.now() });
-    audioStream?.getTracks().forEach(t => t.stop());
-  };
+  document.getElementById("text").value="";
 };
 
-// ====================== VOIX IA ======================
-window.speak = (text) => {
-  speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = "fr-FR"; u.rate = 0.92; u.pitch = 1.05;
+/* 🔊 TEXT TO SPEECH */
+window.speak=(text,btn)=>{
+  window.speechSynthesis.cancel();
+
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang="fr-FR";
+  u.rate=0.92;
+
+  btn.innerText="⏹";
+
+  u.onend=()=>btn.innerText="🔊";
+
   speechSynthesis.speak(u);
 };
 
-// ====================== NOTIFICATIONS ======================
-function showNotification(msg) {
-  if (Notification.permission === "granted" && document.visibilityState !== "visible") {
-    const notif = new Notification(`${msg.name} (${currentRoom})`, {
-      body: msg.type === "voice" ? "🎤 Message vocal" : msg.text,
-      icon: "https://cdn-icons-png.flaticon.com/512/5968/5968890.png",
-      tag: "chat-msg" // évite les doublons
-    });
+/* 🎤 FIXED VOICE MESSAGE */
+window.startVoice=async()=>{
+  const stream=await navigator.mediaDevices.getUserMedia({audio:true});
 
-    notif.onclick = () => window.focus();
-  }
-}
+  recorder=new MediaRecorder(stream);
+  chunks=[];
 
-// ====================== AFFICHAGE MESSAGES ======================
-function listenRoom() {
-  const messagesDiv = document.getElementById("messages");
-  if (unsubscribe) unsubscribe();
+  recorder.start();
 
-  unsubscribe = onValue(rooms[currentRoom], (snapshot) => {
-    messagesDiv.innerHTML = "";
-    const data = snapshot.val() || {};
+  recorder.ondataavailable=e=>{
+    chunks.push(e.data);
+  };
 
-    Object.values(data)
-      .sort((a,b) => a.time - b.time)
-      .forEach(msg => {
-        const div = document.createElement("div");
-        div.className = `message ${msg.name === currentUser.name ? 'sent' : 'received'}`;
+  recorder.onstop=()=>{
+    const blob=new Blob(chunks,{type:"audio/webm"});
+    const reader=new FileReader();
 
-        if (msg.type === "text") {
-          div.innerHTML = `
-            <div class="name" style="color:${msg.color}">${msg.name}</div>
-            ${msg.text}
-            <button class="speak-btn" onclick="speak('${msg.text.replace(/'/g,"\\'")}')">🔊</button>
-          `;
-        } else if (msg.type === "voice") {
-          div.innerHTML = `
-            <div class="name" style="color:${msg.color}">${msg.name}</div>
-            <audio controls src="${msg.audioUrl}"></audio>
-          `;
-        }
-        messagesDiv.appendChild(div);
+    reader.readAsDataURL(blob);
 
-        // Notification seulement pour les messages des autres
-        if (msg.name !== currentUser.name) {
-          showNotification(msg);
-        }
+    reader.onloadend=()=>{
+      push(rooms[currentRoom],{
+        voice:reader.result,
+        name:currentUser.name,
+        color:currentUser.color,
+        id:currentUser.id,
+        time:Date.now()
       });
+    };
+  };
 
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  setTimeout(()=>recorder.stop(),4000);
+};
+
+/* 💬 LIVE CHAT */
+function listenRoom(){
+  onValue(rooms[currentRoom],snap=>{
+    const data=snap.val();
+    const box=document.getElementById("notes");
+    box.innerHTML="";
+
+    if(!data)return;
+
+    Object.entries(data).reverse().forEach(([id,n])=>{
+
+      const div=document.createElement("div");
+      div.className="note";
+
+      div.innerHTML=`
+        <b style="color:${n.color}">${n.name}</b><br/>
+
+        ${n.text ? `
+          ${n.text}
+          <button class="voiceBtn" onclick="speak('${n.text}',this)">🔊</button>
+        ` : ""}
+
+        ${n.voice ? `
+          <audio controls src="${n.voice}"></audio>
+        ` : ""}
+      `;
+
+      box.appendChild(div);
+    });
   });
 }
+
 </script>
 </body>
 </html>
