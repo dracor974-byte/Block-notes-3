@@ -8,123 +8,140 @@
 <style>
 body{
   margin:0;
-  font-family:Arial;
-  background:#0A0A0A;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: #0a0a1f url('https://images.unsplash.com/photo-1617791160588-241658c0f566') center/cover no-repeat fixed;
   color:white;
+  height:100vh;
+  overflow:hidden;
 }
 
-/* LOGIN */
 #login{
   display:flex;
   flex-direction:column;
   align-items:center;
   justify-content:center;
   height:100vh;
+  gap:15px;
+  background:rgba(10,10,31,0.9);
 }
 
 .card{
-  background:#141414;
-  padding:12px;
-  margin:8px;
-  border-radius:10px;
+  background:rgba(30,30,50,0.95);
+  padding:15px 20px;
+  border-radius:12px;
   cursor:pointer;
-  width:180px;
+  width:220px;
   text-align:center;
-  transition:0.2s;
-  pointer-events: auto;
+  font-size:18px;
+  transition:0.3s;
 }
 
-.card:hover{
-  background:#1f1f1f;
-  transform: scale(1.05);
-}
+.card:hover{ transform:scale(1.08); background:rgba(50,40,80,0.95); }
 
 /* APP */
-#app{display:none;padding:12px}
+#app{
+  display:none;
+  height:100vh;
+  flex-direction:column;
+}
 
-/* ROOM HEADER */
-.roomTitle{
-  font-size:22px;
-  font-weight:bold;
-  margin-bottom:5px;
+#header{
+  background:rgba(20,20,40,0.95);
+  padding:12px;
+  border-bottom:1px solid #444;
+}
+
+#messages{
+  flex:1;
+  overflow-y:auto;
+  padding:15px;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  background:rgba(10,10,31,0.75);
+}
+
+.message{
+  max-width:78%;
+  padding:10px 14px;
+  border-radius:18px;
+  word-wrap:break-word;
+}
+
+.message.sent{
+  background:#4ECDC4;
+  color:black;
+  align-self:flex-end;
+}
+
+.message.received{
+  background:#2a2a3a;
+  align-self:flex-start;
+}
+
+.message .name{
+  font-size:12px;
+  margin-bottom:4px;
+  opacity:0.9;
 }
 
 .roomBar{
   display:flex;
-  gap:10px;
+  gap:8px;
   overflow-x:auto;
-  padding:10px 0;
+  padding:10px;
+  background:rgba(20,20,40,0.95);
 }
 
 .roomBtn{
-  padding:12px 16px;
+  padding:10px 16px;
   border-radius:25px;
   border:none;
   cursor:pointer;
   color:white;
   font-weight:bold;
   white-space:nowrap;
-  transition:0.2s;
-  transform:scale(1);
 }
 
-.roomBtn.active{transform:scale(1.1)}
+.roomBtn.active{transform:scale(1.08);}
 
-/* COLORS */
 .serie{background:#FF6B6B;}
-.jeux{background:#4ECDC4;color:black;}
-.futur{background:#FFD93D;color:black;}
+.jeux{background:#4ECDC4; color:black;}
+.futur{background:#FFD93D; color:black;}
 
-/* CHAT */
-textarea{
-  width:100%;
+#inputArea{
   padding:10px;
-  background:#141414;
+  background:rgba(20,20,40,0.95);
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+
+textarea{
+  flex:1;
+  padding:12px;
+  background:#1f1f2f;
   color:white;
   border:none;
-  border-radius:10px;
-}
-
-button{
-  padding:10px;
-  border:none;
-  border-radius:8px;
-  cursor:pointer;
-  margin-top:5px;
-}
-
-.note{
-  background:#141414;
-  padding:10px;
-  margin:10px 0;
-  border-radius:10px;
-}
-
-.voiceBtn{
-  margin-left:8px;
+  border-radius:20px;
+  resize:none;
+  max-height:120px;
 }
 
 #voiceHold{
   background:#333;
   color:white;
-  padding:12px;
-  border-radius:10px;
-  text-align:center;
-  margin-top:8px;
-  user-select:none;
-  cursor: pointer;
+  padding:12px 18px;
+  border-radius:50px;
+  cursor:pointer;
 }
 
 #voiceHold.active{
-  background:#4ECDC4;
-  color:black;
-  transform:scale(1.05);
+  background:#FF6B6B;
+  animation: pulse 1.2s infinite;
 }
 
-audio{
-  width:100%;
-  margin-top:8px;
-}
+@keyframes pulse { 0%{transform:scale(1)} 50%{transform:scale(1.12)} }
 </style>
 </head>
 
@@ -140,143 +157,109 @@ audio{
 
 <!-- APP -->
 <div id="app">
+  <div id="header">
+    <div id="user"></div>
+  </div>
 
-<div id="user"></div>
+  <div class="roomBar">
+    <button class="roomBtn serie active" onclick="switchRoom('serie',this)">🎬 Série</button>
+    <button class="roomBtn jeux" onclick="switchRoom('jeux',this)">🎮 Jeux</button>
+    <button class="roomBtn futur" onclick="switchRoom('futur',this)">🚀 Futur</button>
+  </div>
 
-<!-- ROOMS TITLE -->
-<div class="roomTitle" id="roomTitle">🎬 Série</div>
+  <div id="messages"></div>
 
-<div class="roomBar">
-  <button class="roomBtn serie active" onclick="switchRoom('serie',this)">🎬 Série</button>
-  <button class="roomBtn jeux" onclick="switchRoom('jeux',this)">🎮 Jeux</button>
-  <button class="roomBtn futur" onclick="switchRoom('futur',this)">🚀 Futur</button>
-</div>
-
-<textarea id="text" placeholder="Écris un message..."></textarea>
-
-<button onclick="send()">Envoyer</button>
-
-<!-- 🎤 HOLD TO RECORD -->
-<div id="voiceHold">🎤 Maintenir pour enregistrer vocal</div>
-
-<div id="notes"></div>
-
+  <div id="inputArea">
+    <textarea id="text" placeholder="Écris un message..."></textarea>
+    <button onclick="send()">Envoyer</button>
+    <div id="voiceHold">🎤</div>
+  </div>
 </div>
 
 <script type="module">
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-const app = initializeApp({
-  databaseURL:"https://block-notes-a-3-default-rtdb.firebaseio.com/"
-});
-
+const app = initializeApp({ databaseURL: "https://block-notes-a-3-default-rtdb.firebaseio.com/" });
 const db = getDatabase(app);
 
 const rooms = {
-  serie: ref(db,"serie"),
-  jeux: ref(db,"jeux"),
-  futur: ref(db,"futur")
+  serie: ref(db, "serie"),
+  jeux: ref(db, "jeux"),
+  futur: ref(db, "futur")
 };
 
 const USERS = {
-  user1:{name:"Draco",color:"#FF6B6B"},
-  user2:{name:"Emer",color:"#4ECDC4"},
-  user3:{name:"Liam",color:"#FFD93D"}
+  user1: {name:"Draco", color:"#FF6B6B"},
+  user2: {name:"Emer", color:"#4ECDC4"},
+  user3: {name:"Liam", color:"#FFD93D"}
 };
 
 let currentUser = null;
 let currentRoom = "serie";
-let recorder;
-let chunks = [];
-let audioStream;
+let recorder, audioStream, chunks = [];
+let recording = false;
+let messageListener = null;
 
-// LOGIN - Version fiable
+// ====================== LOGIN ======================
 document.querySelectorAll('#login .card').forEach(card => {
-  card.addEventListener('click', () => {
-    const id = card.getAttribute('data-id');
-    login(id);
-  });
+  card.addEventListener('click', () => login(card.getAttribute('data-id')));
 });
 
 window.login = (id) => {
   currentUser = { id, ...USERS[id] };
-
   document.getElementById("login").style.display = "none";
-  document.getElementById("app").style.display = "block";
+  document.getElementById("app").style.display = "flex";
 
-  document.getElementById("user").innerHTML = `
-    <h3 style="color:${currentUser.color}">
-      ${currentUser.name}
-    </h3>`;
-
+  document.getElementById("user").innerHTML = `<h3 style="color:${currentUser.color};margin:0;">${currentUser.name}</h3>`;
   listenRoom();
 };
 
-/* SWITCH ROOM */
+// ====================== SWITCH ROOM ======================
 window.switchRoom = (room, btn) => {
   currentRoom = room;
-
-  document.querySelectorAll(".roomBtn").forEach(b => {
-    b.classList.remove("active");
-  });
-
+  document.querySelectorAll(".roomBtn").forEach(b => b.classList.remove("active"));
   if(btn) btn.classList.add("active");
-
-  const titles = {
-    serie: "🎬 Série",
-    jeux: "🎮 Jeux",
-    futur: "🚀 Futur"
-  };
-
-  document.getElementById("roomTitle").innerText = titles[room];
   listenRoom();
 };
 
-/* SEND TEXT */
+// ====================== ENVOI TEXTE ======================
 window.send = () => {
-  const text = document.getElementById("text").value;
+  const text = document.getElementById("text").value.trim();
   if(!text || !currentUser) return;
 
   push(rooms[currentRoom], {
-    text,
+    type: "text",
+    text: text,
     name: currentUser.name,
     color: currentUser.color,
-    id: currentUser.id,
     time: Date.now()
   });
 
   document.getElementById("text").value = "";
 };
 
-/* VOICE RECORDING */
+// ====================== VOCAL ======================
 const holdBtn = document.getElementById("voiceHold");
-
-let recording = false;
 
 holdBtn.addEventListener("mousedown", startRecording);
 holdBtn.addEventListener("touchstart", startRecording);
-
 holdBtn.addEventListener("mouseup", stopRecording);
 holdBtn.addEventListener("mouseleave", stopRecording);
 holdBtn.addEventListener("touchend", stopRecording);
 
 async function startRecording() {
   if (recording || !currentUser) return;
-
   try {
     recording = true;
     holdBtn.classList.add("active");
-
     audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     recorder = new MediaRecorder(audioStream);
     chunks = [];
-
     recorder.ondataavailable = e => chunks.push(e.data);
     recorder.start();
-  } catch (err) {
-    console.error("Erreur micro :", err);
+  } catch(e) {
+    console.error(e);
     alert("Impossible d'accéder au micro");
     recording = false;
     holdBtn.classList.remove("active");
@@ -285,37 +268,59 @@ async function startRecording() {
 
 function stopRecording() {
   if (!recording || !recorder) return;
-
   recording = false;
   holdBtn.classList.remove("active");
-
   recorder.stop();
 
   recorder.onstop = () => {
     const blob = new Blob(chunks, { type: "audio/webm" });
     const url = URL.createObjectURL(blob);
 
-    // Option : lire directement
-    const audio = document.createElement("audio");
-    audio.controls = true;
-    audio.src = url;
-    document.getElementById("notes").appendChild(audio);
+    push(rooms[currentRoom], {
+      type: "voice",
+      audioUrl: url,
+      name: currentUser.name,
+      color: currentUser.color,
+      time: Date.now()
+    });
 
-    // Tu peux aussi l'envoyer sur Firebase plus tard
     audioStream?.getTracks().forEach(track => track.stop());
   };
-}
+};
 
-/* Écoute des messages (à compléter selon tes besoins) */
+// ====================== AFFICHAGE MESSAGES ======================
 function listenRoom() {
-  // Exemple basique
-  onValue(rooms[currentRoom], (snapshot) => {
+  const messagesDiv = document.getElementById("messages");
+
+  // Supprime l'ancien listener pour éviter les doublons
+  if (messageListener) messageListener();
+
+  messageListener = onValue(rooms[currentRoom], (snapshot) => {
+    messagesDiv.innerHTML = "";   // On vide d'abord
+
     const data = snapshot.val();
-    // Afficher les messages ici...
-    console.log(data);
+    if (!data) return;
+
+    Object.values(data)
+      .sort((a, b) => a.time - b.time)
+      .forEach(msg => {
+        const div = document.createElement("div");
+        div.className = `message ${msg.name === currentUser.name ? 'sent' : 'received'}`;
+
+        if (msg.type === "text") {
+          div.innerHTML = `<div class="name" style="color:${msg.color}">${msg.name}</div>${msg.text}`;
+        } else if (msg.type === "voice") {
+          div.innerHTML = `
+            <div class="name" style="color:${msg.color}">${msg.name}</div>
+            <audio controls src="${msg.audioUrl}"></audio>
+          `;
+        }
+        messagesDiv.appendChild(div);
+      });
+
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
   });
 }
-
 </script>
 </body>
 </html>
