@@ -161,7 +161,7 @@ let me = null;
 let room = "serie";
 let msgs = [];
 
-/* ================= LOGIN ================= */
+/* ================= LOGIN FIX ================= */
 window.login = function(name){
 
   me = name;
@@ -186,7 +186,7 @@ window.switchRoom = function(r,el){
 /* ================= SEND ================= */
 window.send = function(){
 
-  let text = document.getElementById("text").value;
+  const text = document.getElementById("text").value;
   if(!text && !window.pendingImg) return;
 
   push(chatRef,{
@@ -214,7 +214,7 @@ document.getElementById("file").onchange = (e)=>{
   reader.readAsDataURL(file);
 };
 
-/* ================= REALTIME MULTIJOUEUR ================= */
+/* ================= REALTIME ================= */
 onValue(chatRef,(snap)=>{
 
   const data = snap.val();
@@ -259,6 +259,7 @@ window.speak = function(text){
 
   const u = new SpeechSynthesisUtterance(text);
   u.lang = "fr-FR";
+  u.rate = 0.95;
 
   speechSynthesis.speak(u);
 };
