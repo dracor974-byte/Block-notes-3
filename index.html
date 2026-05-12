@@ -9,11 +9,10 @@
 body{
   margin:0;
   font-family:Arial;
-  background:#0A0A0A;
+  background: radial-gradient(circle at top,#111,#070707);
   color:white;
 }
 
-/* LOGIN */
 #login{
   display:flex;
   flex-direction:column;
@@ -32,34 +31,38 @@ body{
   text-align:center;
 }
 
-/* APP */
 #app{display:none;padding:12px}
 
-/* ROOM BAR */
+/* ROOMS */
+.roomTitle{
+  font-size:22px;
+  font-weight:bold;
+  margin-bottom:5px;
+}
+
 .roomBar{
   display:flex;
   gap:10px;
   overflow-x:auto;
   padding:10px 0;
-  margin-bottom:10px;
 }
 
 .roomBtn{
-  padding:10px 14px;
-  border-radius:20px;
+  padding:12px 16px;
+  border-radius:25px;
   border:none;
   cursor:pointer;
-  background:#1a1a1a;
   color:white;
-  transition:0.2s;
+  font-weight:bold;
   white-space:nowrap;
+  transition:0.2s;
 }
 
-.roomBtn.active{
-  background:#4ECDC4;
-  color:black;
-  transform:scale(1.05);
-}
+.roomBtn.active{transform:scale(1.1)}
+
+.serie{background:#FF6B6B;}
+.jeux{background:#4ECDC4;color:black;}
+.futur{background:#FFD93D;color:black;}
 
 /* CHAT */
 textarea{
@@ -79,22 +82,24 @@ button{
   margin-top:5px;
 }
 
+/* MESSAGE */
 .note{
-  background:#141414;
-  padding:10px;
+  background:linear-gradient(145deg,#1a1a1a,#111);
+  padding:12px;
   margin:10px 0;
-  border-radius:10px;
+  border-radius:12px;
+  border:1px solid #222;
+  animation:pop 0.2s ease;
 }
 
-.voiceBtn{
-  margin-left:8px;
-  cursor:pointer;
+@keyframes pop{
+  from{transform:scale(0.95);opacity:0}
+  to{transform:scale(1);opacity:1}
 }
 
-audio{
-  width:100%;
-  margin-top:8px;
-}
+.voiceBtn{margin-left:8px;cursor:pointer}
+
+audio{width:100%;margin-top:8px}
 </style>
 </head>
 
@@ -103,7 +108,6 @@ audio{
 <!-- LOGIN -->
 <div id="login">
   <h2>Choisis ton perso</h2>
-
   <div class="card" onclick="login('user1')">🔥 Draco</div>
   <div class="card" onclick="login('user2')">💎 Emer</div>
   <div class="card" onclick="login('user3')">⚡ Liam</div>
@@ -114,17 +118,18 @@ audio{
 
 <h3 id="user"></h3>
 
-<!-- ROOMS (MODERN UI) -->
+<div class="roomTitle" id="roomTitle">🎬 Série</div>
+
 <div class="roomBar">
-  <button class="roomBtn active" onclick="switchRoom('serie',this)">🎬 Série</button>
-  <button class="roomBtn" onclick="switchRoom('jeux',this)">🎮 Jeux</button>
-  <button class="roomBtn" onclick="switchRoom('futur',this)">🚀 Futur</button>
+  <button class="roomBtn serie active" onclick="switchRoom('serie',this)">🎬 Série</button>
+  <button class="roomBtn jeux" onclick="switchRoom('jeux',this)">🎮 Jeux</button>
+  <button class="roomBtn futur" onclick="switchRoom('futur',this)">🚀 Futur</button>
 </div>
 
 <textarea id="text" placeholder="Écris un message..."></textarea>
 
 <button onclick="send()">Envoyer</button>
-<button onclick="startVoice()">🎤 Enregistrer vocal</button>
+<button onclick="startVoice()">🎤 Vocal</button>
 
 <div id="notes"></div>
 
@@ -157,6 +162,27 @@ let currentUser=null;
 let currentRoom="serie";
 let recorder;
 let chunks=[];
+let lastNotif=0;
+
+/* 🔔 NOTIF PERMISSION */
+function askNotif(){
+  if("Notification" in window){
+    Notification.requestPermission();
+  }
+}
+
+function notify(title,body){
+  if(Notification.permission!=="granted") return;
+
+  new Notification(title,{
+    body,
+    icon:"https://emojiapi.dev/api/v1/speech_balloon/64.png"
+  });
+
+  if(navigator.vibrate){
+    navigator.vibrate(200);
+  }
+}
 
 /* LOGIN */
 window.login=(id)=>{
@@ -168,18 +194,24 @@ window.login=(id)=>{
   document.getElementById("user").innerHTML=
     `<span style="color:${currentUser.color}">${currentUser.name}</span>`;
 
+  askNotif();
   listenRoom();
 };
 
-/* SWITCH ROOM (UI FIX) */
+/* SWITCH ROOM */
 window.switchRoom=(room,btn)=>{
   currentRoom=room;
 
-  document.querySelectorAll(".roomBtn").forEach(b=>{
-    b.classList.remove("active");
-  });
-
+  document.querySelectorAll(".roomBtn").forEach(b=>b.classList.remove("active"));
   if(btn) btn.classList.add("active");
+
+  const titles={
+    serie:"🎬 Série",
+    jeux:"🎮 Jeux",
+    futur:"🚀 Futur"
+  };
+
+  document.getElementById("roomTitle").innerText=titles[room];
 
   listenRoom();
 };
@@ -200,7 +232,7 @@ window.send=()=>{
   document.getElementById("text").value="";
 };
 
-/* 🔊 TEXT TO SPEECH */
+/* 🔊 VOICE TEXT */
 window.speak=(text,btn)=>{
   window.speechSynthesis.cancel();
 
@@ -215,7 +247,7 @@ window.speak=(text,btn)=>{
   speechSynthesis.speak(u);
 };
 
-/* 🎤 FIXED VOICE MESSAGE */
+/* 🎤 VOICE RECORD */
 window.startVoice=async()=>{
   const stream=await navigator.mediaDevices.getUserMedia({audio:true});
 
@@ -224,9 +256,7 @@ window.startVoice=async()=>{
 
   recorder.start();
 
-  recorder.ondataavailable=e=>{
-    chunks.push(e.data);
-  };
+  recorder.ondataavailable=e=>chunks.push(e.data);
 
   recorder.onstop=()=>{
     const blob=new Blob(chunks,{type:"audio/webm"});
@@ -248,7 +278,7 @@ window.startVoice=async()=>{
   setTimeout(()=>recorder.stop(),4000);
 };
 
-/* 💬 LIVE CHAT */
+/* 💬 LIVE CHAT + 🔔 NOTIF */
 function listenRoom(){
   onValue(rooms[currentRoom],snap=>{
     const data=snap.val();
@@ -259,20 +289,31 @@ function listenRoom(){
 
     Object.entries(data).reverse().forEach(([id,n])=>{
 
+      /* 🔔 NOTIF ANTI SPAM */
+      const now=Date.now();
+      if(
+        currentUser &&
+        n.id!==currentUser.id &&
+        now-lastNotif>2000
+      ){
+        notify("💬 "+n.name,n.text||"Message vocal");
+        lastNotif=now;
+      }
+
       const div=document.createElement("div");
       div.className="note";
 
       div.innerHTML=`
         <b style="color:${n.color}">${n.name}</b><br/>
 
-        ${n.text ? `
+        ${n.text?`
           ${n.text}
           <button class="voiceBtn" onclick="speak('${n.text}',this)">🔊</button>
-        ` : ""}
+        `:""}
 
-        ${n.voice ? `
+        ${n.voice?`
           <audio controls src="${n.voice}"></audio>
-        ` : ""}
+        `:""}
       `;
 
       box.appendChild(div);
