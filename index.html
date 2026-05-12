@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Omori Chat Local</title>
+<title>Omori Chat Online</title>
 
 <style>
 body{
@@ -27,7 +27,6 @@ body{
   font-size:32px;
   margin-bottom:20px;
   color:#caa6ff;
-  text-shadow:0 0 10px #7a2cff;
 }
 
 .card{
@@ -39,11 +38,9 @@ body{
   font-size:22px;
   border-radius:12px;
   cursor:pointer;
-  transition:0.2s;
 }
 
 .card:hover{
-  transform:scale(1.05);
   background:#7a2cff;
 }
 
@@ -86,7 +83,6 @@ body{
   background:#1a0b2e;
   border-radius:10px;
   max-width:70%;
-  box-shadow:0 0 10px rgba(122,44,255,0.25);
 }
 
 .me{
@@ -115,7 +111,6 @@ img{
 <!-- LOGIN -->
 <div id="login">
   <h2>Choisis ton identité</h2>
-
   <div class="card" onclick="login('Draco')">Draco</div>
   <div class="card" onclick="login('Emer')">Emer</div>
   <div class="card" onclick="login('Liam')">Liam</div>
@@ -144,7 +139,22 @@ img{
 </div>
 </div>
 
-<script>
+<script type="module">
+
+/* ================= FIREBASE ================= */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "XXX",
+  authDomain: "XXX",
+  databaseURL: "XXX",
+  projectId: "XXX"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const chatRef = ref(db,"chat");
 
 /* ================= STATE ================= */
 let me = null;
@@ -152,17 +162,16 @@ let room = "serie";
 let msgs = [];
 
 /* ================= LOGIN ================= */
-function login(name){
+window.login = function(name){
 
   me = name;
 
   document.getElementById("login").style.display = "none";
   document.getElementById("app").style.display = "flex";
-}
-window.login = login;
+};
 
 /* ================= ROOM ================= */
-function switchRoom(r,el){
+window.switchRoom = function(r,el){
 
   room = r;
 
@@ -172,16 +181,15 @@ function switchRoom(r,el){
   el.classList.add("active");
 
   render();
-}
-window.switchRoom = switchRoom;
+};
 
 /* ================= SEND ================= */
-function send(){
+window.send = function(){
 
   let text = document.getElementById("text").value;
   if(!text && !window.pendingImg) return;
 
-  msgs.push({
+  push(chatRef,{
     name: me,
     text: text || "",
     img: window.pendingImg || null,
@@ -191,10 +199,7 @@ function send(){
 
   document.getElementById("text").value = "";
   window.pendingImg = null;
-
-  render();
-}
-window.send = send;
+};
 
 /* ================= IMAGE ================= */
 document.getElementById("file").onchange = (e)=>{
@@ -208,6 +213,19 @@ document.getElementById("file").onchange = (e)=>{
 
   reader.readAsDataURL(file);
 };
+
+/* ================= REALTIME MULTIJOUEUR ================= */
+onValue(chatRef,(snap)=>{
+
+  const data = snap.val();
+  msgs = [];
+
+  for(let id in data){
+    msgs.push(data[id]);
+  }
+
+  render();
+});
 
 /* ================= RENDER ================= */
 function render(){
@@ -234,18 +252,16 @@ function render(){
 }
 
 /* ================= VOICE ================= */
-function speak(text){
+window.speak = function(text){
   if(!text) return;
 
   speechSynthesis.cancel();
 
   const u = new SpeechSynthesisUtterance(text);
   u.lang = "fr-FR";
-  u.rate = 0.95;
 
   speechSynthesis.speak(u);
-}
-window.speak = speak;
+};
 
 </script>
 
