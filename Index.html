@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bloc-Notes Partagé</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0A0A0A;
+      --surface: #141414;
+      --border: #222;
+      --text: #F0EDE6;
+      --muted: #555;
+      --u1: #FF6B6B;
+      --u2: #4ECDC4;
+      --u3: #FFD93D;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Space Mono', monospace;
+      min-height: 100vh;
+    }
+
+    /* LOGIN */
+    #login {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .login-title {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: clamp(28px, 6vw, 48px);
+      letter-spacing: -2px;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+
+    .login-sub {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 48px;
+      text-align: center;
+    }
+
+    .user-cards {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      width: 100%;
+      max-width: 380px;
+    }
+
+    .user-card {
+      background: var(--surface);
+      border: 2px solid #222;
+      border-radius: 18px;
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(.4,0,.2,1);
+      text-align: left;
+      width: 100%;
+    }
+
+    .user-card:hover {
+      transform: translateX(8px);
+    }
+
+    .user-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+
+    .user-card-name {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 16px;
+    }
+
+    .user-card-hint {
+      font-size: 11px;
+      margin-top: 3px;
+      opacity: 0.7;
+    }
+
+    /* APP */
+    #app { display: none; min-height: 100vh; }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(10,10,10,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-logo {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 16px;
+      letter-spacing: -0.5px;
+    }
+
+    .badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 11px;
+      font-weight: 700;
+      border: 1px solid;
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .btn-switch {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 8px;
+      padding: 7px 14px;
+      cursor: pointer;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      transition: all 0.2s;
+    }
+    .btn-switch:hover { border-color: #444; color: var(--text); }
+
+    main {
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 28px 20px 60px;
+    }
+
+    /* WHO'S HERE */
+    .presence {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+    }
+
+    .presence-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 20px;
+      padding: 5px 12px;
+      font-size: 11px;
+      border: 1px solid;
+      transition: all 0.2s;
+    }
+
+    /* COMPOSE */
+    .compose {
+      border-radius: 18px;
+      overflow: hidden;
+      margin-bottom: 28px;
+      border: 2px solid;
+      transition: border-color 0.2s;
+    }
+
+    .compose-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px 6px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .compose textarea {
+      width: 100%;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-family: 'Space Mono', monospace;
+      font-size: 14px;
+      padding: 8px 16px 14px;
+      resize: none;
+      line-height: 1.7;
+    }
+
+    .compose textarea::placeholder { color: #333; }
+
+    .compose-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .compose-hint { font-size: 11px; color: var(--muted); }
+
+    .btn-post {
+      border: none;
+      border-radius: 10px;
+      padding: 9px 20px;
+      cursor: pointer;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+
+    .btn-post:disabled {
+      background: #222 !important;
+      color: #444;
+      cursor: default;
+    }
+
+    /* NOTES */
+    .notes-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .notes-count { font-size: 12px; color: var(--muted); }
+    .sync-label { font-size: 11px; color: #333; }
+
+    .notes-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .note-card {
+      background: var(--surface);
+      border-radius: 14px;
+      padding: 16px;
+      border: 1px solid;
+      border-left-width: 3px;
+      animation: slideIn 0.3s cubic-bezier(.4,0,.2,1);
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .note-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .note-author {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .note-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .note-time { font-size: 11px; color: var(--muted); }
+
+    .btn-delete {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 6px;
+      padding: 3px 9px;
+      cursor: pointer;
+      font-size: 11px;
+      transition: all 0.2s;
+    }
+    .btn-delete:hover { border-color: var(--u1); color: var(--u1); }
+
+    .note-content {
+      font-size: 14px;
+      line-height: 1.75;
+      color: #E8E4DC;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .empty {
+      text-align: center;
+      padding: 60px 20px;
+      border: 1px dashed #222;
+      border-radius: 18px;
+    }
+
+    .empty-icon { font-size: 36px; margin-bottom: 14px; }
+    .empty-text { color: var(--muted); font-size: 13px; line-height: 1.8; }
+
+    #sync-dot {
+      font-size: 11px;
+      color: #333;
+      transition: color 0.3s;
+    }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login">
+  <div class="login-title">📝 Bloc-Notes</div>
+  <div class="login-sub">Choisissez votre identité pour continuer</div>
+  <div class="user-cards">
+    <button class="user-card" onclick="login('user1','Personne 1','#FF6B6B','🔴')" id="card1">
+      <div class="user-avatar" style="background:#FF6B6B22">🔴</div>
+      <div>
+        <div class="user-card-name" style="color:#FF6B6B">Personne 1</div>
+        <div class="user-card-hint" style="color:#FF6B6B">Se connecter →</div>
+      </div>
+    </button>
+    <button class="user-card" onclick="login('user2','Personne 2','#4ECDC4','🟢')" id="card2">
+      <div class="user-avatar" style="background:#4ECDC422">🟢</div>
+      <div>
+        <div class="user-card-name" style="color:#4ECDC4">Personne 2</div>
+        <div class="user-card-hint" style="color:#4ECDC4">Se connecter →</div>
+      </div>
+    </button>
+    <button class="user-card" onclick="login('user3','Personne 3','#FFD93D','🟡')" id="card3">
+      <div class="user-avatar" style="background:#FFD93D22">🟡</div>
+      <div>
+        <div class="user-card-name" style="color:#FFD93D">Personne 3</div>
+        <div class="user-card-hint" style="color:#FFD93D">Se connecter →</div>
+      </div>
+    </button>
+  </div>
+  <p style="color:#333;font-size:11px;margin-top:40px;text-align:center">Notes partagées en temps réel • Gratuit</p>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <header>
+    <div class="header-left">
+      <span class="header-logo">📝 Bloc-Notes</span>
+      <div class="badge" id="user-badge"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span id="sync-dot"></span>
+      <button class="btn-switch" onclick="logout()">Changer</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="presence" id="presence"></div>
+
+    <div class="compose" id="compose-box">
+      <div class="compose-header" id="compose-header"></div>
+      <textarea id="note-input" rows="3" placeholder="Écrivez une note... (Ctrl+Entrée pour envoyer)"></textarea>
+      <div class="compose-footer">
+        <span class="compose-hint" id="compose-hint">Ctrl+Entrée pour publier</span>
+        <button class="btn-post" id="btn-post" onclick="postNote()" disabled>Publier →</button>
+      </div>
+    </div>
+
+    <div class="notes-header">
+      <span class="notes-count" id="notes-count">0 note</span>
+      <span class="sync-label" id="last-sync"></span>
+    </div>
+
+    <div class="notes-list" id="notes-list">
+      <div class="empty">
+        <div class="empty-icon">✍️</div>
+        <div class="empty-text">Aucune note pour l'instant.<br/>Soyez le premier à écrire !</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Firebase -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  const firebaseConfig = {
+    databaseURL: "https://block-notes-a-3-default-rtdb.firebaseio.com/"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  const notesRef = ref(db, 'notes');
+
+  const USERS = {
+    user1: { name: 'Personne 1', color: '#FF6B6B', emoji: '🔴' },
+    user2: { name: 'Personne 2', color: '#4ECDC4', emoji: '🟢' },
+    user3: { name: 'Personne 3', color: '#FFD93D', emoji: '🟡' },
+  };
+
+  let currentUser = null;
+
+  window.login = function(id, name, color, emoji) {
+    currentUser = { id, name, color, emoji };
+
+    // Style login cards hover
+    document.querySelectorAll('.user-card').forEach(c => {
+      c.style.borderColor = '#222';
+      c.style.background = '#141414';
+      c.style.transform = 'none';
+    });
+
+    // Badge
+    document.getElementById('user-badge').innerHTML = `
+      <div class="dot" style="background:${color}"></div>
+      <span style="color:${color}">${name}</span>
+    `;
+    document.getElementById('user-badge').style.cssText += `background:${color}18;border-color:${color}55;`;
+
+    // Compose
+    document.getElementById('compose-box').style.borderColor = color + '55';
+    document.getElementById('compose-box').style.background = '#141414';
+    document.getElementById('compose-header').innerHTML = `
+      <div class="dot" style="background:${color};animation:none"></div>
+      <span style="color:${color}">${name}</span>
+    `;
+    document.getElementById('btn-post').style.background = color;
+    document.getElementById('btn-post').style.color = '#000';
+
+    // Presence
+    const presence = document.getElementById('presence');
+    presence.innerHTML = Object.entries(USERS).map(([uid, u]) => `
+      <div class="presence-chip" style="
+        border-color:${uid===id ? u.color+'88' : '#222'};
+        background:${uid===id ? u.color+'18' : 'transparent'};
+      ">
+        <div style="width:6px;height:6px;border-radius:50%;background:${u.color}"></div>
+        <span style="color:${uid===id ? u.color : '#444'}">${u.name}${uid===id ? ' (vous)' : ''}</span>
+      </div>
+    `).join('');
+
+    document.getElementById('login').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+  };
+
+  window.logout = function() {
+    currentUser = null;
+    document.getElementById('login').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('note-input').value = '';
+  };
+
+  // Input handler
+  const input = document.getElementById('note-input');
+  input.addEventListener('input', () => {
+    const v = input.value.trim();
+    document.getElementById('btn-post').disabled = !v;
+    document.getElementById('compose-hint').textContent = v ? `${input.value.length} caractères` : 'Ctrl+Entrée pour publier';
+  });
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) window.postNote();
+  });
+
+  window.postNote = function() {
+    const content = input.value.trim();
+    if (!content || !currentUser) return;
+    push(notesRef, {
+      content,
+      authorId: currentUser.id,
+      authorName: currentUser.name,
+      color: currentUser.color,
+      createdAt: Date.now()
+    });
+    input.value = '';
+    document.getElementById('btn-post').disabled = true;
+    document.getElementById('compose-hint').textContent = 'Ctrl+Entrée pour publier';
+  };
+
+  window.deleteNote = function(key) {
+    remove(ref(db, 'notes/' + key));
+  };
+
+  // Real-time listener
+  onValue(notesRef, (snapshot) => {
+    const data = snapshot.val();
+    const list = document.getElementById('notes-list');
+    const countEl = document.getElementById('notes-count');
+    const syncEl = document.getElementById('last-sync');
+
+    syncEl.textContent = 'Mis à jour ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    document.getElementById('sync-dot').textContent = '↻ en direct';
+    setTimeout(() => document.getElementById('sync-dot').textContent = '', 1500);
+
+    if (!data) {
+      countEl.textContent = '0 note';
+      list.innerHTML = `
+        <div class="empty">
+          <div class="empty-icon">✍️</div>
+          <div class="empty-text">Aucune note pour l'instant.<br/>Soyez le premier à écrire !</div>
+        </div>`;
+      return;
+    }
+
+    const notes = Object.entries(data).map(([key, val]) => ({ key, ...val }))
+      .sort((a, b) => b.createdAt - a.createdAt);
+
+    countEl.textContent = `${notes.length} note${notes.length > 1 ? 's' : ''}`;
+
+    list.innerHTML = notes.map(n => {
+      const isOwn = currentUser && n.authorId === currentUser.id;
+      const d = new Date(n.createdAt);
+      const today = new Date();
+      const timeStr = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      const dateStr = d.toDateString() === today.toDateString()
+        ? `Aujourd'hui à ${timeStr}`
+        : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) + ` à ${timeStr}`;
+
+      return `
+        <div class="note-card" style="border-color:${n.color}33;border-left-color:${n.color}">
+          <div class="note-meta">
+            <div class="note-author">
+              <div style="width:8px;height:8px;border-radius:50%;background:${n.color}"></div>
+              <span style="color:${n.color}">${n.authorName}</span>
+            </div>
+            <div class="note-right">
+              <span class="note-time">${dateStr}</span>
+              ${isOwn ? `<button class="btn-delete" onclick="deleteNote('${n.key}')">✕</button>` : ''}
+            </div>
+          </div>
+          <div class="note-content">${n.content.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+        </div>
+      `;
+    }).join('');
+  });
+</script>
+</body>
+</html>
