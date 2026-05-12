@@ -30,6 +30,13 @@ body{
   cursor:pointer;
   width:180px;
   text-align:center;
+  transition:0.2s;
+  pointer-events: auto;
+}
+
+.card:hover{
+  background:#1f1f1f;
+  transform: scale(1.05);
 }
 
 /* APP */
@@ -49,7 +56,6 @@ body{
   padding:10px 0;
 }
 
-/* ROOMS COLORS */
 .roomBtn{
   padding:12px 16px;
   border-radius:25px;
@@ -98,7 +104,6 @@ button{
   margin-left:8px;
 }
 
-/* 🎤 HOLD BUTTON */
 #voiceHold{
   background:#333;
   color:white;
@@ -107,6 +112,7 @@ button{
   text-align:center;
   margin-top:8px;
   user-select:none;
+  cursor: pointer;
 }
 
 #voiceHold.active{
@@ -127,9 +133,9 @@ audio{
 <!-- LOGIN -->
 <div id="login">
   <h2>Choisis ton perso</h2>
-  <div class="card" onclick="login('user1')">🔥 Draco</div>
-  <div class="card" onclick="login('user2')">💎 Emer</div>
-  <div class="card" onclick="login('user3')">⚡ Liam</div>
+  <div class="card" data-id="user1">🔥 Draco</div>
+  <div class="card" data-id="user2">💎 Emer</div>
+  <div class="card" data-id="user3">⚡ Liam</div>
 </div>
 
 <!-- APP -->
@@ -180,20 +186,28 @@ const USERS = {
   user3:{name:"Liam",color:"#FFD93D"}
 };
 
-let currentUser=null;
-let currentRoom="serie";
+let currentUser = null;
+let currentRoom = "serie";
 let recorder;
-let chunks=[];
+let chunks = [];
+let audioStream;
 
-/* LOGIN */
-window.login=(id)=>{
-  currentUser={id,...USERS[id]};
+// LOGIN - Version fiable
+document.querySelectorAll('#login .card').forEach(card => {
+  card.addEventListener('click', () => {
+    const id = card.getAttribute('data-id');
+    login(id);
+  });
+});
 
-  document.getElementById("login").style.display="none";
-  document.getElementById("app").style.display="block";
+window.login = (id) => {
+  currentUser = { id, ...USERS[id] };
 
-  document.getElementById("user").innerHTML=
-    `<h3 style="color:${currentUser.color}">
+  document.getElementById("login").style.display = "none";
+  document.getElementById("app").style.display = "block";
+
+  document.getElementById("user").innerHTML = `
+    <h3 style="color:${currentUser.color}">
       ${currentUser.name}
     </h3>`;
 
@@ -201,97 +215,107 @@ window.login=(id)=>{
 };
 
 /* SWITCH ROOM */
-window.switchRoom=(room,btn)=>{
-  currentRoom=room;
+window.switchRoom = (room, btn) => {
+  currentRoom = room;
 
-  document.querySelectorAll(".roomBtn").forEach(b=>{
+  document.querySelectorAll(".roomBtn").forEach(b => {
     b.classList.remove("active");
   });
 
   if(btn) btn.classList.add("active");
 
-  const titles={
-    serie:"🎬 Série",
-    jeux:"🎮 Jeux",
-    futur:"🚀 Futur"
+  const titles = {
+    serie: "🎬 Série",
+    jeux: "🎮 Jeux",
+    futur: "🚀 Futur"
   };
 
-  document.getElementById("roomTitle").innerText=titles[room];
-
+  document.getElementById("roomTitle").innerText = titles[room];
   listenRoom();
 };
 
 /* SEND TEXT */
-window.send=()=>{
-  const text=document.getElementById("text").value;
-  if(!text||!currentUser)return;
+window.send = () => {
+  const text = document.getElementById("text").value;
+  if(!text || !currentUser) return;
 
-  push(rooms[currentRoom],{
+  push(rooms[currentRoom], {
     text,
-    name:currentUser.name,
-    color:currentUser.color,
-    id:currentUser.id,
-    time:Date.now()
+    name: currentUser.name,
+    color: currentUser.color,
+    id: currentUser.id,
+    time: Date.now()
   });
 
-  document.getElementById("text").value="";
+  document.getElementById("text").value = "";
 };
 
-/* 🔊 VOIX */
-window.speak=(text,btn)=>{
-  window.speechSynthesis.cancel();
+/* VOICE RECORDING */
+const holdBtn = document.getElementById("voiceHold");
 
-  const u=new SpeechSynthesisUtterance(text);
-  u.lang="fr-FR";
-  u.rate=0.92;
+let recording = false;
 
-  btn.innerText="⏹";
+holdBtn.addEventListener("mousedown", startRecording);
+holdBtn.addEventListener("touchstart", startRecording);
 
-  u.onend=()=>btn.innerText="🔊";
+holdBtn.addEventListener("mouseup", stopRecording);
+holdBtn.addEventListener("mouseleave", stopRecording);
+holdBtn.addEventListener("touchend", stopRecording);
 
-  speechSynthesis.speak(u);
-};
+async function startRecording() {
+  if (recording || !currentUser) return;
 
-/* 🎤 HOLD TO RECORD (FIX) */
-const holdBtn=document.getElementById("voiceHold");
+  try {
+    recording = true;
+    holdBtn.classList.add("active");
 
-let recording=false;
+    audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    recorder = new MediaRecorder(audioStream);
+    chunks = [];
 
-holdBtn.addEventListener("mousedown",start);
-holdBtn.addEventListener("touchstart",start);
-
-holdBtn.addEventListener("mouseup",stop);
-holdBtn.addEventListener("mouseleave",stop);
-holdBtn.addEventListener("touchend",stop);
-
-async function start(){
-  if(recording||!currentUser)return;
-
-  recording=true;
-  holdBtn.classList.add("active");
-
-  const stream=await navigator.mediaDevices.getUserMedia({audio:true});
-
-  recorder=new MediaRecorder(stream);
-  chunks=[];
-
-  recorder.start();
-
-  recorder.ondataavailable=e=>{
-    chunks.push(e.data);
-  };
+    recorder.ondataavailable = e => chunks.push(e.data);
+    recorder.start();
+  } catch (err) {
+    console.error("Erreur micro :", err);
+    alert("Impossible d'accéder au micro");
+    recording = false;
+    holdBtn.classList.remove("active");
+  }
 }
 
-function stop(){
-  if(!recording)return;
+function stopRecording() {
+  if (!recording || !recorder) return;
 
-  recording=false;
+  recording = false;
   holdBtn.classList.remove("active");
 
   recorder.stop();
 
-  recorder.onstop=()=>{
-    const blob=new Blob(chunks,{type:"audio/webm"});
-    const reader=new FileReader();
+  recorder.onstop = () => {
+    const blob = new Blob(chunks, { type: "audio/webm" });
+    const url = URL.createObjectURL(blob);
 
-    reader.readAsDataURL
+    // Option : lire directement
+    const audio = document.createElement("audio");
+    audio.controls = true;
+    audio.src = url;
+    document.getElementById("notes").appendChild(audio);
+
+    // Tu peux aussi l'envoyer sur Firebase plus tard
+    audioStream?.getTracks().forEach(track => track.stop());
+  };
+}
+
+/* Écoute des messages (à compléter selon tes besoins) */
+function listenRoom() {
+  // Exemple basique
+  onValue(rooms[currentRoom], (snapshot) => {
+    const data = snapshot.val();
+    // Afficher les messages ici...
+    console.log(data);
+  });
+}
+
+</script>
+</body>
+</html>
