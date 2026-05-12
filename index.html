@@ -8,11 +8,9 @@
 <style>
 body{
   margin:0;
-  font-family: 'Segoe UI', Arial, sans-serif;
+  font-family:Arial;
   background:#0A0A0A;
   color:white;
-  height:100vh;
-  overflow:hidden;
 }
 
 /* LOGIN */
@@ -22,96 +20,44 @@ body{
   align-items:center;
   justify-content:center;
   height:100vh;
-  gap:15px;
 }
 
 .card{
-  background:#1f1f1f;
-  padding:15px 20px;
+  background:#141414;
+  padding:12px;
   margin:8px;
-  border-radius:12px;
+  border-radius:10px;
   cursor:pointer;
-  width:220px;
+  width:180px;
   text-align:center;
-  font-size:18px;
-  transition:0.3s;
-  box-shadow:0 4px 10px rgba(0,0,0,0.3);
+  transition:0.2s;
+  pointer-events: auto;
 }
 
 .card:hover{
-  background:#2a2a2a;
-  transform:scale(1.08);
-}
-
-/* APP - WhatsApp Style */
-#app{
-  display:none;
-  height:100vh;
-  flex-direction:column;
-}
-
-#header{
   background:#1f1f1f;
-  padding:12px;
-  display:flex;
-  align-items:center;
-  gap:10px;
-  border-bottom:1px solid #333;
+  transform: scale(1.05);
 }
 
-#messages{
-  flex:1;
-  overflow-y:auto;
-  padding:15px;
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-  background:#0f0f0f;
-}
+/* APP */
+#app{display:none;padding:12px}
 
-.message{
-  max-width:75%;
-  padding:10px 14px;
-  border-radius:18px;
-  position:relative;
-  word-wrap:break-word;
-}
-
-.message.sent{
-  background:#4ECDC4;
-  color:black;
-  align-self:flex-end;
-  border-bottom-right-radius:4px;
-}
-
-.message.received{
-  background:#2a2a2a;
-  align-self:flex-start;
-  border-bottom-left-radius:4px;
-}
-
-.message .name{
-  font-size:12px;
-  opacity:0.8;
-  margin-bottom:4px;
-}
-
-.audio-msg{
-  display:flex;
-  align-items:center;
-  gap:8px;
+/* ROOM HEADER */
+.roomTitle{
+  font-size:22px;
+  font-weight:bold;
+  margin-bottom:5px;
 }
 
 .roomBar{
   display:flex;
-  gap:8px;
+  gap:10px;
   overflow-x:auto;
-  padding:10px;
-  background:#1a1a1a;
+  padding:10px 0;
 }
 
 .roomBtn{
-  padding:10px 16px;
+  padding:12px 16px;
   border-radius:25px;
   border:none;
   cursor:pointer;
@@ -119,53 +65,65 @@ body{
   font-weight:bold;
   white-space:nowrap;
   transition:0.2s;
+  transform:scale(1);
 }
 
-.roomBtn.active{transform:scale(1.08); font-weight:bold;}
+.roomBtn.active{transform:scale(1.1)}
 
+/* COLORS */
 .serie{background:#FF6B6B;}
-.jeux{background:#4ECDC4; color:black;}
-.futur{background:#FFD93D; color:black;}
+.jeux{background:#4ECDC4;color:black;}
+.futur{background:#FFD93D;color:black;}
 
+/* CHAT */
 textarea{
   width:100%;
-  padding:12px;
-  background:#1f1f1f;
+  padding:10px;
+  background:#141414;
   color:white;
   border:none;
-  border-radius:20px;
-  resize:none;
-  max-height:120px;
+  border-radius:10px;
 }
 
-#inputArea{
+button{
   padding:10px;
-  background:#1f1f1f;
-  display:flex;
-  gap:8px;
-  align-items:center;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+  margin-top:5px;
+}
+
+.note{
+  background:#141414;
+  padding:10px;
+  margin:10px 0;
+  border-radius:10px;
+}
+
+.voiceBtn{
+  margin-left:8px;
 }
 
 #voiceHold{
   background:#333;
   color:white;
-  padding:12px 20px;
-  border-radius:50px;
+  padding:12px;
+  border-radius:10px;
   text-align:center;
+  margin-top:8px;
   user-select:none;
-  cursor:pointer;
-  min-width:50px;
+  cursor: pointer;
 }
 
 #voiceHold.active{
-  background:#FF6B6B;
-  color:white;
-  animation: pulse 1.5s infinite;
+  background:#4ECDC4;
+  color:black;
+  transform:scale(1.05);
 }
 
-@keyframes pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.1); }
+audio{
+  width:100%;
+  margin-top:8px;
 }
 </style>
 </head>
@@ -182,50 +140,59 @@ textarea{
 
 <!-- APP -->
 <div id="app">
-  <div id="header">
-    <div id="user"></div>
-  </div>
 
-  <div class="roomBar">
-    <button class="roomBtn serie active" onclick="switchRoom('serie',this)">🎬 Série</button>
-    <button class="roomBtn jeux" onclick="switchRoom('jeux',this)">🎮 Jeux</button>
-    <button class="roomBtn futur" onclick="switchRoom('futur',this)">🚀 Futur</button>
-  </div>
+<div id="user"></div>
 
-  <div id="messages"></div>
+<!-- ROOMS TITLE -->
+<div class="roomTitle" id="roomTitle">🎬 Série</div>
 
-  <div id="inputArea">
-    <textarea id="text" placeholder="Écris un message..."></textarea>
-    <button onclick="send()">Envoyer</button>
-    <div id="voiceHold">🎤</div>
-  </div>
+<div class="roomBar">
+  <button class="roomBtn serie active" onclick="switchRoom('serie',this)">🎬 Série</button>
+  <button class="roomBtn jeux" onclick="switchRoom('jeux',this)">🎮 Jeux</button>
+  <button class="roomBtn futur" onclick="switchRoom('futur',this)">🚀 Futur</button>
+</div>
+
+<textarea id="text" placeholder="Écris un message..."></textarea>
+
+<button onclick="send()">Envoyer</button>
+
+<!-- 🎤 HOLD TO RECORD -->
+<div id="voiceHold">🎤 Maintenir pour enregistrer vocal</div>
+
+<div id="notes"></div>
+
 </div>
 
 <script type="module">
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-const app = initializeApp({ databaseURL: "https://block-notes-a-3-default-rtdb.firebaseio.com/" });
+const app = initializeApp({
+  databaseURL:"https://block-notes-a-3-default-rtdb.firebaseio.com/"
+});
+
 const db = getDatabase(app);
 
 const rooms = {
-  serie: ref(db, "serie"),
-  jeux: ref(db, "jeux"),
-  futur: ref(db, "futur")
+  serie: ref(db,"serie"),
+  jeux: ref(db,"jeux"),
+  futur: ref(db,"futur")
 };
 
 const USERS = {
-  user1: {name:"Draco", color:"#FF6B6B"},
-  user2: {name:"Emer", color:"#4ECDC4"},
-  user3: {name:"Liam", color:"#FFD93D"}
+  user1:{name:"Draco",color:"#FF6B6B"},
+  user2:{name:"Emer",color:"#4ECDC4"},
+  user3:{name:"Liam",color:"#FFD93D"}
 };
 
 let currentUser = null;
 let currentRoom = "serie";
-let recorder, audioStream, chunks = [];
-let recording = false;
+let recorder;
+let chunks = [];
+let audioStream;
 
-// Login
+// LOGIN - Version fiable
 document.querySelectorAll('#login .card').forEach(card => {
   card.addEventListener('click', () => {
     const id = card.getAttribute('data-id');
@@ -235,59 +202,81 @@ document.querySelectorAll('#login .card').forEach(card => {
 
 window.login = (id) => {
   currentUser = { id, ...USERS[id] };
+
   document.getElementById("login").style.display = "none";
-  document.getElementById("app").style.display = "flex";
+  document.getElementById("app").style.display = "block";
 
   document.getElementById("user").innerHTML = `
-    <h3 style="color:${currentUser.color}; margin:0;">${currentUser.name}</h3>
-  `;
+    <h3 style="color:${currentUser.color}">
+      ${currentUser.name}
+    </h3>`;
+
   listenRoom();
 };
 
+/* SWITCH ROOM */
 window.switchRoom = (room, btn) => {
   currentRoom = room;
-  document.querySelectorAll(".roomBtn").forEach(b => b.classList.remove("active"));
+
+  document.querySelectorAll(".roomBtn").forEach(b => {
+    b.classList.remove("active");
+  });
+
   if(btn) btn.classList.add("active");
+
+  const titles = {
+    serie: "🎬 Série",
+    jeux: "🎮 Jeux",
+    futur: "🚀 Futur"
+  };
+
+  document.getElementById("roomTitle").innerText = titles[room];
   listenRoom();
 };
 
+/* SEND TEXT */
 window.send = () => {
-  const text = document.getElementById("text").value.trim();
+  const text = document.getElementById("text").value;
   if(!text || !currentUser) return;
 
   push(rooms[currentRoom], {
-    type: "text",
     text,
     name: currentUser.name,
     color: currentUser.color,
+    id: currentUser.id,
     time: Date.now()
   });
 
   document.getElementById("text").value = "";
 };
 
-// Voice Recording
+/* VOICE RECORDING */
 const holdBtn = document.getElementById("voiceHold");
+
+let recording = false;
 
 holdBtn.addEventListener("mousedown", startRecording);
 holdBtn.addEventListener("touchstart", startRecording);
+
 holdBtn.addEventListener("mouseup", stopRecording);
 holdBtn.addEventListener("mouseleave", stopRecording);
 holdBtn.addEventListener("touchend", stopRecording);
 
 async function startRecording() {
   if (recording || !currentUser) return;
+
   try {
     recording = true;
     holdBtn.classList.add("active");
+
     audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     recorder = new MediaRecorder(audioStream);
     chunks = [];
 
     recorder.ondataavailable = e => chunks.push(e.data);
     recorder.start();
-  } catch (e) {
-    console.error(e);
+  } catch (err) {
+    console.error("Erreur micro :", err);
     alert("Impossible d'accéder au micro");
     recording = false;
     holdBtn.classList.remove("active");
@@ -296,57 +285,37 @@ async function startRecording() {
 
 function stopRecording() {
   if (!recording || !recorder) return;
+
   recording = false;
   holdBtn.classList.remove("active");
+
   recorder.stop();
 
   recorder.onstop = () => {
     const blob = new Blob(chunks, { type: "audio/webm" });
     const url = URL.createObjectURL(blob);
 
-    push(rooms[currentRoom], {
-      type: "voice",
-      audioUrl: url,        // Note: pour vrai stockage, il faudrait uploader le blob sur Firebase Storage
-      name: currentUser.name,
-      color: currentUser.color,
-      time: Date.now()
-    });
+    // Option : lire directement
+    const audio = document.createElement("audio");
+    audio.controls = true;
+    audio.src = url;
+    document.getElementById("notes").appendChild(audio);
 
+    // Tu peux aussi l'envoyer sur Firebase plus tard
     audioStream?.getTracks().forEach(track => track.stop());
   };
 }
 
-// Affichage des messages
+/* Écoute des messages (à compléter selon tes besoins) */
 function listenRoom() {
-  const messagesDiv = document.getElementById("messages");
-  messagesDiv.innerHTML = "";
-
+  // Exemple basique
   onValue(rooms[currentRoom], (snapshot) => {
-    messagesDiv.innerHTML = "";
     const data = snapshot.val();
-
-    if (!data) return;
-
-    Object.values(data).sort((a,b) => a.time - b.time).forEach(msg => {
-      const div = document.createElement("div");
-      div.className = `message ${msg.name === currentUser.name ? 'sent' : 'received'}`;
-
-      if (msg.type === "text") {
-        div.innerHTML = `<div class="name" style="color:${msg.color}">${msg.name}</div>${msg.text}`;
-      } else if (msg.type === "voice") {
-        div.innerHTML = `
-          <div class="name" style="color:${msg.color}">${msg.name}</div>
-          <div class="audio-msg">
-            <audio controls src="${msg.audioUrl}"></audio>
-          </div>
-        `;
-      }
-      messagesDiv.appendChild(div);
-    });
-
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    // Afficher les messages ici...
+    console.log(data);
   });
 }
+
 </script>
 </body>
 </html>
