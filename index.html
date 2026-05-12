@@ -3,84 +3,64 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Omori Chat Fix</title>
-
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#6c4cff">
+<title>Omori Chat</title>
 
 <style>
 
-/* BACKGROUND FIX (video + fallback) */
-#bgvideo{
-  position:fixed;
-  top:0;
-  left:0;
-  width:100%;
-  height:100%;
-  object-fit:cover;
-  z-index:-2;
-  filter:brightness(0.35) saturate(1.3);
-}
-
-#bgfallback{
-  position:fixed;
-  top:0;
-  left:0;
-  width:100%;
-  height:100%;
-  z-index:-3;
-  background:radial-gradient(circle,#1a1333,#0b0b14);
-}
-
-/* APP */
+/* 🌈 BACKGROUND GRADIENT (REMPLACE VIDEO) */
 body{
   margin:0;
   font-family:Arial;
-  color:#f3f0ff;
+  color:white;
+  height:100vh;
+  background: linear-gradient(135deg, #1a0033, #2b004f, #5a0033, #2a0040);
+  background-size:400% 400%;
+  animation: bg 10s ease infinite;
 }
 
-#app{
-  display:flex;
-  height:100vh;
+@keyframes bg{
+  0%{background-position:0% 50%}
+  50%{background-position:100% 50%}
+  100%{background-position:0% 50%}
 }
+
+/* APP */
+#app{display:flex;height:100vh}
 
 /* SIDEBAR */
 #sidebar{
   width:220px;
-  background:rgba(26,19,51,0.85);
+  background:rgba(20,10,40,0.7);
   backdrop-filter:blur(10px);
   padding:12px;
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-  border-right:1px solid #2a1f4a;
+  border-right:1px solid #3a1a5a;
 }
 
-.title{color:#b69cff;font-weight:bold}
-
-/* CHANNELS */
 .channel{
   padding:10px;
   border-radius:10px;
+  margin-bottom:8px;
   cursor:pointer;
-  background:#1b1630;
+  background:#1b0f2e;
 }
 
-.channel.active{background:#6c4cff}
+.channel.active{
+  background:#7a2cff;
+}
 
 /* CHAT */
 #chat{flex:1;display:flex;flex-direction:column}
 
 #top{
   height:50px;
-  background:#1a1333;
   display:flex;
   align-items:center;
   padding:0 15px;
-  border-bottom:1px solid #2a1f4a;
+  background:rgba(20,10,40,0.8);
+  border-bottom:1px solid #3a1a5a;
 }
 
-/* MESSAGES */
+/* MSG */
 #messages{
   flex:1;
   overflow:auto;
@@ -94,20 +74,20 @@ body{
   max-width:70%;
   padding:10px;
   border-radius:12px;
-  background:#1a1333;
-  border:1px solid #2a1f4a;
+  background:#1a0b2e;
+  border:1px solid #3a1a5a;
 }
 
 .me{
   align-self:flex-end;
-  background:linear-gradient(135deg,#6c4cff,#9b7bff);
+  background:linear-gradient(135deg,#7a2cff,#ff2e6f);
 }
 
-/* REPLY STYLE */
+/* REPLY BOX */
 .reply{
   font-size:11px;
   opacity:0.7;
-  border-left:2px solid #6c4cff;
+  border-left:2px solid #ff2e6f;
   padding-left:6px;
   margin-bottom:5px;
 }
@@ -116,8 +96,8 @@ body{
 #input{
   display:flex;
   padding:10px;
-  background:#1a1333;
-  border-top:1px solid #2a1f4a;
+  background:rgba(20,10,40,0.8);
+  border-top:1px solid #3a1a5a;
 }
 
 textarea{
@@ -125,8 +105,18 @@ textarea{
   padding:10px;
   border:none;
   border-radius:10px;
-  background:#0f0f1a;
+  background:#12061f;
   color:white;
+}
+
+button{
+  margin-left:6px;
+  padding:10px;
+  border:none;
+  border-radius:10px;
+  background:#7a2cff;
+  color:white;
+  cursor:pointer;
 }
 
 /* LOGIN */
@@ -136,11 +126,10 @@ textarea{
   align-items:center;
   justify-content:center;
   height:100vh;
-  background:radial-gradient(circle,#1a1333,#0b0b14);
 }
 
 .card{
-  background:#1a1333;
+  background:#1a0b2e;
   padding:12px;
   margin:8px;
   width:180px;
@@ -149,205 +138,100 @@ textarea{
   cursor:pointer;
 }
 
-/* buttons */
-button{
-  margin-left:6px;
-  background:#6c4cff;
-  border:none;
-  padding:10px;
-  border-radius:10px;
-  color:white;
-  cursor:pointer;
-}
-
 </style>
 </head>
 
 <body>
 
-<!-- BACKGROUND FIX -->
-<div id="bgfallback"></div>
-
-<video autoplay muted loop playsinline id="bgvideo">
-  <source src="https://cdn.pixabay.com/video/2022/07/02/12598-720p.mp4" type="video/mp4">
-</video>
-
 <!-- LOGIN -->
 <div id="login">
   <h2>Choisis ton profil</h2>
-  <div class="card" onclick="setUser('Draco','#ff4d6d')">🔥 Draco</div>
-  <div class="card" onclick="setUser('Emer','#4ECDC4')">💎 Emer</div>
-  <div class="card" onclick="setUser('Liam','#FFD93D')">⚡ Liam</div>
+  <div class="card" onclick="setUser('Draco')">Draco</div>
+  <div class="card" onclick="setUser('Emer')">Emer</div>
+  <div class="card" onclick="setUser('Liam')">Liam</div>
 </div>
 
 <!-- APP -->
 <div id="app" style="display:none">
 
 <div id="sidebar">
-  <div class="title">🌙 Rooms</div>
-  <div class="channel active" onclick="switchRoom('serie',this)">🎬 série</div>
-  <div class="channel" onclick="switchRoom('jeux',this)">🎮 jeux</div>
-  <div class="channel" onclick="switchRoom('futur',this)">🚀 futur</div>
+  <div class="channel active">🎬 série</div>
+  <div class="channel">🎮 jeux</div>
+  <div class="channel">🚀 futur</div>
 </div>
 
 <div id="chat">
 
-<div id="top"># chat</div>
+<div id="top">Chat</div>
 <div id="messages"></div>
 
 <div id="input">
   <textarea id="text"></textarea>
-
-  <input type="file" id="img" accept="image/*" hidden>
-  <input type="file" id="vid" accept="video/*" hidden>
-
-  <button onclick="document.getElementById('img').click()">📷</button>
-  <button onclick="document.getElementById('vid').click()">🎥</button>
   <button onclick="send()">Send</button>
 </div>
 
 </div>
 </div>
 
-<script type="module">
-
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-
-const app = initializeApp({
-  databaseURL:"https://block-notes-a-3-default-rtdb.firebaseio.com/"
-});
-
-const db = getDatabase(app);
-
-const rooms={
-  serie:ref(db,"serie"),
-  jeux:ref(db,"jeux"),
-  futur:ref(db,"futur")
-};
+<script>
 
 let me=null;
-let current="serie";
+let messages=[];
 
 /* LOGIN */
-window.setUser=(name,color)=>{
-  me={name,color};
+window.setUser=(name)=>{
+  me=name;
   document.getElementById("login").style.display="none";
   document.getElementById("app").style.display="flex";
-  listen();
 };
 
-/* SWITCH ROOM */
-window.switchRoom=(r,el)=>{
-  current=r;
-  document.querySelectorAll(".channel").forEach(c=>c.classList.remove("active"));
-  el.classList.add("active");
-  listen();
-};
-
-/* UPLOAD FIX (Firebase base64 simple fallback) */
-function toBase64(file){
-  return new Promise(res=>{
-    const r=new FileReader();
-    r.onload=()=>res(r.result);
-    r.readAsDataURL(file);
-  });
-}
-
-/* MEDIA */
-document.getElementById("img").onchange=async(e)=>{
-  let url=await toBase64(e.target.files[0]);
-
-  push(rooms[current],{
-    type:"img",
-    url,
-    name:me.name,
-    reply:null,
-    time:Date.now()
-  });
-};
-
-document.getElementById("vid").onchange=async(e)=>{
-  let url=await toBase64(e.target.files[0]);
-
-  push(rooms[current],{
-    type:"video",
-    url,
-    name:me.name,
-    reply:null,
-    time:Date.now()
-  });
-};
-
-/* SEND TEXT */
+/* SEND */
 window.send=()=>{
   let text=document.getElementById("text").value;
   if(!text)return;
 
-  push(rooms[current],{
-    type:"text",
+  messages.push({
+    name:me,
     text,
-    name:me.name,
-    reply:window.replyTo || null,
-    time:Date.now()
+    reply:window.replyTo || null
   });
 
   window.replyTo=null;
   document.getElementById("text").value="";
+  render();
 };
 
-/* LISTEN */
-function listen(){
-  onValue(rooms[current],snap=>{
-    let data=snap.val();
-    let box=document.getElementById("messages");
-    box.innerHTML="";
-
-    if(!data)return;
-
-    let arr=Object.values(data);
-
-    arr.forEach((m,i)=>{
-
-      let isMe = me && m.name===me.name;
-
-      let replyHTML = m.reply
-        ? `<div class="reply">↳ ${m.reply}</div>`
-        : "";
-
-      let content="";
-
-      if(m.type==="img"){
-        content=`<img src="${m.url}" style="max-width:200px;border-radius:10px"/>`;
-      }
-      else if(m.type==="video"){
-        content=`<video src="${m.url}" controls style="max-width:220px;border-radius:10px"></video>`;
-      }
-      else{
-        content=m.text;
-      }
-
-      let div=document.createElement("div");
-      div.className="msg "+(isMe?"me":"other");
-
-      div.innerHTML=`
-        ${replyHTML}
-        <b>${m.name}</b><br/>
-        ${content}
-        <br>
-        <button onclick="reply('${m.text || "media"}')">↩ reply</button>
-      `;
-
-      box.appendChild(div);
-    });
-  });
-}
-
-/* REPLY */
+/* REPLY FIX */
 window.reply=(text)=>{
   window.replyTo=text;
   document.getElementById("text").placeholder="Replying to: "+text;
 };
+
+/* RENDER */
+function render(){
+  let box=document.getElementById("messages");
+  box.innerHTML="";
+
+  messages.forEach(m=>{
+
+    let replyHTML = m.reply
+      ? `<div class="reply">↳ ${m.reply}</div>`
+      : "";
+
+    let div=document.createElement("div");
+    div.className="msg "+(m.name===me?"me":"other");
+
+    div.innerHTML=`
+      ${replyHTML}
+      <b>${m.name}</b><br>
+      ${m.text}
+      <br>
+      <button onclick="reply('${m.text}')">↩ reply</button>
+    `;
+
+    box.appendChild(div);
+  });
+}
 
 </script>
 
