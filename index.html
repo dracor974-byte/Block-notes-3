@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Omori Chat Full</title>
+<title>Chat Vocal Full</title>
 
 <style>
 body{
@@ -81,25 +81,23 @@ body{
   max-width:70%;
 }
 
-.me{
-  background:#7a2cff;
-  align-self:flex-end;
-}
+.me{ background:#7a2cff; align-self:flex-end; }
 
-img{
+img, audio{
   max-width:180px;
-  border-radius:10px;
   margin-top:5px;
+  border-radius:10px;
 }
 
 #input{
   display:flex;
   padding:10px;
   background:#12061f;
+  gap:5px;
 }
 
 textarea{ flex:1; }
-button{ margin-left:5px; }
+button{ cursor:pointer; }
 </style>
 </head>
 
@@ -116,22 +114,24 @@ button{ margin-left:5px; }
 <!-- APP -->
 <div id="app">
 
-<!-- CHANNELS -->
 <div id="sidebar">
   <div class="channel active" onclick="switchChannel('general',this)"># general</div>
   <div class="channel" onclick="switchChannel('games',this)"># games</div>
   <div class="channel" onclick="switchChannel('irl',this)"># irl</div>
 </div>
 
-<!-- CHAT -->
 <div id="chat">
 
 <div id="messages"></div>
 
 <div id="input">
   <textarea id="text"></textarea>
+
   <input type="file" id="img" accept="image/*" hidden>
   <button onclick="document.getElementById('img').click()">📎</button>
+
+  <button onclick="startVoice()">🎤</button>
+
   <button onclick="send()">Send</button>
 </div>
 
@@ -157,11 +157,12 @@ let color = "#fff";
 let channel = "general";
 let imageBase64 = null;
 let replyTo = null;
+let mediaRecorder;
+let audioChunks = [];
 let msgs = [];
 
 /* ================= LOGIN ================= */
 window.login = function(id,name,col){
-
   me = name;
   color = col;
 
@@ -171,9 +172,8 @@ window.login = function(id,name,col){
   notify("Connecté : " + name, col);
 };
 
-/* ================= CHANNELS ================= */
+/* ================= CHANNEL ================= */
 window.switchChannel = function(name,el){
-
   channel = name;
 
   document.querySelectorAll(".channel")
@@ -186,27 +186,56 @@ window.switchChannel = function(name,el){
 
 /* ================= IMAGE ================= */
 document.getElementById("img").onchange = function(e){
-
   const file = e.target.files[0];
   const reader = new FileReader();
-
   reader.onload = () => imageBase64 = reader.result;
   reader.readAsDataURL(file);
 };
 
-/* ================= REPLY ================= */
-window.reply = function(msg){
+/* ================= VOICE RECORD ================= */
+window.startVoice = async function(){
 
-  replyTo = {
-    name: msg.name,
-    text: msg.text || ""
+  if(!navigator.mediaDevices) return alert("Micro non supporté");
+
+  const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+
+  mediaRecorder = new MediaRecorder(stream);
+  audioChunks = [];
+
+  mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+
+  mediaRecorder.onstop = () => {
+
+    const audioBlob = new Blob(audioChunks,{type:'audio/webm'});
+    const reader = new FileReader();
+
+    reader.onload = () => {
+
+      push(chatRef,{
+        name: me,
+        color,
+        audio: reader.result,
+        channel,
+        time: Date.now()
+      });
+    };
+
+    reader.readAsDataURL(audioBlob);
   };
 
+  mediaRecorder.start();
+
+  setTimeout(()=>mediaRecorder.stop(),5000); // 5 sec max
+};
+
+/* ================= REPLY ================= */
+window.reply = function(msg){
+  replyTo = { name: msg.name, text: msg.text || "" };
   document.getElementById("text").placeholder =
     "Réponse à " + msg.name;
 };
 
-/* ================= SEND ================= */
+/* ================= SEND TEXT ================= */
 window.send = function(){
 
   const text = document.getElementById("text").value;
@@ -226,10 +255,17 @@ window.send = function(){
   document.getElementById("text").value = "";
   imageBase64 = null;
   replyTo = null;
-  document.getElementById("text").placeholder = "Message...";
 };
 
-/* ================= NOTIFICATIONS ================= */
+/* ================= TEXT TO SPEECH ================= */
+window.speak = function(text){
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "fr-FR";
+  speechSynthesis.cancel();
+  speechSynthesis.speak(u);
+};
+
+/* ================= NOTIF ================= */
 function notify(text,col){
 
   const d = document.createElement("div");
@@ -293,14 +329,19 @@ function render(){
 
         ${m.img ? `<img src="${m.img}">` : ""}
 
+        ${m.audio ? `<br><audio controls src="${m.audio}"></audio>` : ""}
+
         <br>
-        <button onclick="reply(${JSON.stringify(m).replace(/"/g,'&quot;')})">↩ reply</button>
+
+        <button onclick="reply(${JSON.stringify(m).replace(/"/g,'&quot;')})">↩</button>
+
+        ${m.text ? `<button onclick="speak('${m.text}')">🔊</button>` : ""}
       `;
 
       box.appendChild(div);
 
       if(m.name !== me){
-        notify(m.name + " a envoyé un message", m.color);
+        notify(m.name + " a parlé", m.color);
       }
     });
 }
