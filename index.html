@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Chat Fix</title>
+<title>Omori Chat Online</title>
 
 <style>
 body{
@@ -13,7 +13,7 @@ body{
   color:white;
 }
 
-/* LOGIN */
+/* ===== LOGIN ===== */
 #login{
   display:flex;
   flex-direction:column;
@@ -26,7 +26,7 @@ body{
   background:#1a0b2e;
   padding:16px;
   margin:10px;
-  width:200px;
+  width:220px;
   text-align:center;
   border-radius:10px;
   cursor:pointer;
@@ -36,7 +36,7 @@ body{
   background:#7a2cff;
 }
 
-/* APP */
+/* ===== APP ===== */
 #app{
   display:none;
   height:100vh;
@@ -47,12 +47,14 @@ body{
   flex:1;
   padding:10px;
   overflow:auto;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
 }
 
 .msg{
   background:#1a0b2e;
   padding:10px;
-  margin:5px;
   border-radius:10px;
   max-width:70%;
 }
@@ -94,46 +96,70 @@ button{
 
 <div id="input">
   <textarea id="text"></textarea>
-  <button onclick="send()">Envoyer</button>
+  <button onclick="send()">Send</button>
 </div>
 
 </div>
 
-<script>
+<script type="module">
 
-/* ===== STATE ===== */
+/* ================= FIREBASE ================= */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "XXX",
+  authDomain: "XXX",
+  databaseURL: "XXX",
+  projectId: "XXX"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const chatRef = ref(db,"chat");
+
+/* ================= STATE ================= */
 let me = null;
 let msgs = [];
 
-/* ===== LOGIN (FIX GARANTI) ===== */
-function login(name){
-
-  console.log("LOGIN OK:", name);
+/* ================= LOGIN FIX ================= */
+window.login = function(name){
 
   me = name;
 
   document.getElementById("login").style.display = "none";
   document.getElementById("app").style.display = "flex";
-}
-window.login = login;
+};
 
-/* ===== SEND ===== */
-function send(){
+/* ================= SEND ================= */
+window.send = function(){
 
-  let text = document.getElementById("text").value;
+  const text = document.getElementById("text").value;
   if(!text) return;
 
-  msgs.push({
+  push(chatRef,{
     name: me,
-    text: text
+    text: text,
+    time: Date.now()
   });
 
   document.getElementById("text").value = "";
+};
+
+/* ================= REALTIME ================= */
+onValue(chatRef,(snap)=>{
+
+  const data = snap.val();
+  msgs = [];
+
+  for(let id in data){
+    msgs.push(data[id]);
+  }
 
   render();
-}
+});
 
-/* ===== RENDER ===== */
+/* ================= RENDER ================= */
 function render(){
 
   const box = document.getElementById("messages");
@@ -149,6 +175,13 @@ function render(){
     box.appendChild(div);
   });
 }
+
+/* ================= VOICE ================= */
+window.speak = function(text){
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "fr-FR";
+  speechSynthesis.speak(u);
+};
 
 </script>
 
