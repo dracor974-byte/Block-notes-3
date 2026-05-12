@@ -3,7 +3,12 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Discord Mini</title>
+
+<title>Chat App PWA</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#4ECDC4">
 
 <style>
 body{
@@ -13,80 +18,65 @@ body{
   color:white;
 }
 
-/* PAGES */
-.page{display:none;height:100vh;}
-.active{display:block}
-
-/* LOGIN */
-#login{
+/* LAYOUT */
+#app{
   display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
+  height:100vh;
 }
 
-.card{
-  background:#1c1c24;
-  padding:12px;
-  margin:8px;
+/* SIDEBAR */
+#sidebar{
   width:180px;
-  text-align:center;
-  border-radius:10px;
-  cursor:pointer;
-}
-
-/* ROOM SELECT */
-#rooms{
+  background:#15151d;
+  padding:10px;
   display:flex;
   flex-direction:column;
-  align-items:center;
-  justify-content:center;
   gap:10px;
 }
 
 .room{
-  padding:12px;
-  width:200px;
+  padding:10px;
   background:#222;
-  border-radius:10px;
+  border-radius:8px;
   cursor:pointer;
   text-align:center;
 }
 
+.room.active{
+  background:#4ECDC4;
+  color:black;
+}
+
 /* CHAT */
 #chat{
+  flex:1;
   display:flex;
   flex-direction:column;
-  height:100vh;
 }
 
-#topbar{
-  display:flex;
-  align-items:center;
-  gap:10px;
+#top{
   padding:10px;
   background:#15151d;
-}
-
-.back{
-  cursor:pointer;
-  font-size:20px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
 }
 
 #messages{
   flex:1;
-  overflow:auto;
   padding:10px;
+  overflow:auto;
   display:flex;
   flex-direction:column;
   gap:10px;
 }
 
+/* MESSAGE */
 .msg{
-  background:#1c1c24;
   padding:10px;
   border-radius:10px;
   max-width:70%;
+  word-break:break-word;
 }
 
 .me{
@@ -97,6 +87,11 @@ body{
 
 .other{
   align-self:flex-start;
+  background:#222;
+}
+
+.name{
+  font-weight:bold;
 }
 
 /* INPUT */
@@ -108,11 +103,11 @@ body{
 
 textarea{
   flex:1;
-  background:#222;
-  border:none;
-  color:white;
   padding:8px;
+  border:none;
   border-radius:6px;
+  background:#222;
+  color:white;
 }
 
 button{
@@ -123,32 +118,52 @@ button{
   border-radius:6px;
   cursor:pointer;
 }
+
+/* LOGIN */
+#login{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  height:100vh;
+}
+
+.card{
+  background:#222;
+  padding:10px;
+  margin:8px;
+  width:160px;
+  text-align:center;
+  border-radius:10px;
+  cursor:pointer;
+}
 </style>
 </head>
 
 <body>
 
-<!-- PAGE 1 LOGIN -->
-<div id="login" class="page active">
+<!-- LOGIN -->
+<div id="login">
   <h2>Qui es-tu ?</h2>
   <div class="card" onclick="setUser('Draco','#ff4d6d')">🔥 Draco</div>
   <div class="card" onclick="setUser('Emer','#4ECDC4')">💎 Emer</div>
   <div class="card" onclick="setUser('Liam','#FFD93D')">⚡ Liam</div>
 </div>
 
-<!-- PAGE 2 ROOMS -->
-<div id="rooms" class="page">
-  <h2>Choisis une discussion</h2>
-  <div class="room" onclick="openRoom('serie')">🎬 Série</div>
-  <div class="room" onclick="openRoom('jeux')">🎮 Jeux</div>
-  <div class="room" onclick="openRoom('futur')">🚀 Futur</div>
+<!-- APP -->
+<div id="app" style="display:none">
+
+<!-- SIDEBAR -->
+<div id="sidebar">
+  <div class="room active" onclick="switchRoom('serie',this)">🎬 Série</div>
+  <div class="room" onclick="switchRoom('jeux',this)">🎮 Jeux</div>
+  <div class="room" onclick="switchRoom('futur',this)">🚀 Futur</div>
 </div>
 
-<!-- PAGE 3 CHAT -->
-<div id="chat" class="page">
+<!-- CHAT -->
+<div id="chat">
 
-<div id="topbar">
-  <div class="back" onclick="goRooms()">⬅</div>
+<div id="top">
   <div id="title">Chat</div>
 </div>
 
@@ -156,7 +171,9 @@ button{
 
 <div id="input">
   <textarea id="text"></textarea>
-  <button onclick="send()">Envoyer</button>
+  <button onclick="send()">Send</button>
+</div>
+
 </div>
 
 </div>
@@ -179,38 +196,37 @@ const rooms={
 };
 
 let me=null;
-let currentRoom=null;
+let current="serie";
 
-/* USER */
+/* PWA REGISTER */
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js");
+}
+
+/* LOGIN */
 window.setUser=(name,color)=>{
   me={name,color};
-  show("rooms");
-};
 
-/* ROOM */
-window.openRoom=(r)=>{
-  currentRoom=r;
-  document.getElementById("title").innerText=r;
-  show("chat");
+  document.getElementById("login").style.display="none";
+  document.getElementById("app").style.display="flex";
+
   listen();
 };
 
-window.goRooms=()=>{
-  show("rooms");
+/* SWITCH ROOM */
+window.switchRoom=(r,el)=>{
+  current=r;
+  document.querySelectorAll(".room").forEach(b=>b.classList.remove("active"));
+  el.classList.add("active");
+  listen();
 };
-
-/* SHOW PAGE */
-function show(id){
-  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
-  document.getElementById(id).classList.add("active");
-}
 
 /* SEND */
 window.send=()=>{
   let text=document.getElementById("text").value;
-  if(!text)return;
+  if(!text || !me)return;
 
-  push(rooms[currentRoom],{
+  push(rooms[current],{
     text,
     name:me.name,
     color:me.color,
@@ -220,9 +236,24 @@ window.send=()=>{
   document.getElementById("text").value="";
 };
 
+/* VOIX */
+window.speak=(txt,btn)=>{
+  window.speechSynthesis.cancel();
+
+  let u=new SpeechSynthesisUtterance(txt);
+  u.lang="fr-FR";
+  u.rate=0.95;
+
+  btn.innerText="⏹";
+
+  u.onend=()=>btn.innerText="🔊";
+
+  speechSynthesis.speak(u);
+};
+
 /* CHAT */
 function listen(){
-  onValue(rooms[currentRoom],snap=>{
+  onValue(rooms[current],snap=>{
     let data=snap.val();
     let box=document.getElementById("messages");
     box.innerHTML="";
@@ -231,17 +262,17 @@ function listen(){
 
     Object.values(data).forEach(m=>{
 
+      const isMe = me && m.name === me.name;
+
       let div=document.createElement("div");
-
-      const isMe = m.name === me.name;
-
       div.className="msg "+(isMe?"me":"other");
 
-      div.style.border=`1px solid ${m.color}`;
-
       div.innerHTML=`
-        <b style="color:${m.color}">${m.name}</b><br/>
+        <div class="name" style="color:${m.color}">
+          ${m.name}
+        </div>
         ${m.text}
+        <button onclick="speak('${m.text}',this)">🔊</button>
       `;
 
       box.appendChild(div);
