@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Chat Vocal Full</title>
+<title>Omori Chat Ultimate</title>
 
 <style>
 body{
@@ -85,8 +85,8 @@ body{
 
 img, audio{
   max-width:180px;
-  margin-top:5px;
   border-radius:10px;
+  margin-top:5px;
 }
 
 #input{
@@ -114,12 +114,14 @@ button{ cursor:pointer; }
 <!-- APP -->
 <div id="app">
 
+<!-- CHANNELS -->
 <div id="sidebar">
   <div class="channel active" onclick="switchChannel('general',this)"># general</div>
   <div class="channel" onclick="switchChannel('games',this)"># games</div>
   <div class="channel" onclick="switchChannel('irl',this)"># irl</div>
 </div>
 
+<!-- CHAT -->
 <div id="chat">
 
 <div id="messages"></div>
@@ -157,9 +159,9 @@ let color = "#fff";
 let channel = "general";
 let imageBase64 = null;
 let replyTo = null;
+let msgs = [];
 let mediaRecorder;
 let audioChunks = [];
-let msgs = [];
 
 /* ================= LOGIN ================= */
 window.login = function(id,name,col){
@@ -195,9 +197,7 @@ document.getElementById("img").onchange = function(e){
 /* ================= VOICE RECORD ================= */
 window.startVoice = async function(){
 
-  if(!navigator.mediaDevices) return alert("Micro non supporté");
-
-  const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+  const stream = await navigator.mediaDevices.getUserMedia({audio:true});
 
   mediaRecorder = new MediaRecorder(stream);
   audioChunks = [];
@@ -206,26 +206,26 @@ window.startVoice = async function(){
 
   mediaRecorder.onstop = () => {
 
-    const audioBlob = new Blob(audioChunks,{type:'audio/webm'});
+    const blob = new Blob(audioChunks,{type:"audio/webm"});
     const reader = new FileReader();
 
     reader.onload = () => {
 
       push(chatRef,{
-        name: me,
+        name:me,
         color,
-        audio: reader.result,
+        audio:reader.result,
         channel,
-        time: Date.now()
+        time:Date.now()
       });
+
     };
 
-    reader.readAsDataURL(audioBlob);
+    reader.readAsDataURL(blob);
   };
 
   mediaRecorder.start();
-
-  setTimeout(()=>mediaRecorder.stop(),5000); // 5 sec max
+  setTimeout(()=>mediaRecorder.stop(),5000);
 };
 
 /* ================= REPLY ================= */
@@ -235,7 +235,12 @@ window.reply = function(msg){
     "Réponse à " + msg.name;
 };
 
-/* ================= SEND TEXT ================= */
+/* ================= PING ================= */
+function extractMentions(text){
+  return text?.match(/@\w+/g) || [];
+}
+
+/* ================= SEND ================= */
 window.send = function(){
 
   const text = document.getElementById("text").value;
@@ -243,13 +248,16 @@ window.send = function(){
   if(!text && !imageBase64) return;
 
   push(chatRef,{
-    name: me,
+    name:me,
     color,
-    text: text || "",
-    img: imageBase64 || null,
+    text,
+    img:imageBase64 || null,
+    audio:null,
     channel,
-    reply: replyTo,
-    time: Date.now()
+    reply:replyTo,
+    mentions:extractMentions(text),
+    pinned:false,
+    time:Date.now()
   });
 
   document.getElementById("text").value = "";
@@ -257,15 +265,7 @@ window.send = function(){
   replyTo = null;
 };
 
-/* ================= TEXT TO SPEECH ================= */
-window.speak = function(text){
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = "fr-FR";
-  speechSynthesis.cancel();
-  speechSynthesis.speak(u);
-};
-
-/* ================= NOTIF ================= */
+/* ================= NOTIFY ================= */
 function notify(text,col){
 
   const d = document.createElement("div");
@@ -283,7 +283,6 @@ function notify(text,col){
   `;
 
   d.innerText = text;
-
   document.body.appendChild(d);
 
   setTimeout(()=>d.remove(),3000);
@@ -312,9 +311,19 @@ function render(){
     .filter(m => m.channel === channel)
     .forEach(m => {
 
+      const isPing = m.mentions?.includes("@" + me);
+
       const div = document.createElement("div");
       div.className = "msg " + (m.name === me ? "me" : "");
       div.style.borderLeft = "3px solid " + m.color;
+
+      if(m.pinned){
+        div.style.boxShadow = "0 0 10px #ffd93d";
+      }
+
+      if(isPing){
+        div.style.boxShadow = "0 0 10px #ff4d6d";
+      }
 
       div.innerHTML = `
         <b style="color:${m.color}">${m.name}</b>
@@ -329,19 +338,21 @@ function render(){
 
         ${m.img ? `<img src="${m.img}">` : ""}
 
-        ${m.audio ? `<br><audio controls src="${m.audio}"></audio>` : ""}
+        ${m.audio ? `<audio controls src="${m.audio}"></audio>` : ""}
+
+        ${isPing ? `<div style="color:#ff4d6d;font-size:11px">📢 Ping</div>` : ""}
+
+        ${m.pinned ? `<div style="color:#ffd93d;font-size:11px">📌 PINNED</div>` : ""}
 
         <br>
 
         <button onclick="reply(${JSON.stringify(m).replace(/"/g,'&quot;')})">↩</button>
-
-        ${m.text ? `<button onclick="speak('${m.text}')">🔊</button>` : ""}
       `;
 
       box.appendChild(div);
 
-      if(m.name !== me){
-        notify(m.name + " a parlé", m.color);
+      if(isPing){
+        notify("📢 Ping reçu", "#ff4d6d");
       }
     });
 }
