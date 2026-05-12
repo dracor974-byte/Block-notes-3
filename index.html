@@ -1,453 +1,202 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Bloc-Notes Partagé</title>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet" />
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    :root {
-      --bg: #0A0A0A; --surface: #141414; --border: #222;
-      --text: #F0EDE6; --muted: #555;
-      --u1: #FF6B6B; --u2: #4ECDC4; --u3: #FFD93D;
-    }
-    body { background: var(--bg); color: var(--text); font-family: 'Space Mono', monospace; min-height: 100vh; }
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Chat Multijoueur</title>
 
-    /* LOGIN */
-    #login { min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px; }
-    .login-title { font-family:'Syne',sans-serif; font-weight:800; font-size:clamp(28px,6vw,48px); letter-spacing:-2px; margin-bottom:8px; text-align:center; }
-    .login-sub { color:var(--muted); font-size:13px; margin-bottom:48px; text-align:center; }
-    .user-cards { display:flex; flex-direction:column; gap:14px; width:100%; max-width:380px; }
-    .user-card { background:var(--surface); border:2px solid #222; border-radius:18px; padding:20px 24px; display:flex; align-items:center; gap:16px; cursor:pointer; transition:all 0.25s cubic-bezier(.4,0,.2,1); text-align:left; width:100%; }
-    .user-card:hover { transform:translateX(8px); }
-    .user-avatar { width:48px; height:48px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0; }
-    .user-card-name { font-family:'Syne',sans-serif; font-weight:700; font-size:16px; }
-    .user-card-hint { font-size:11px; margin-top:3px; opacity:0.7; }
+<style>
+body{
+  margin:0;
+  font-family:Arial;
+  background:linear-gradient(135deg,#1a0033,#3a005a,#5a0030);
+  color:white;
+}
 
-    /* APP */
-    #app { display:none; min-height:100vh; }
-    header { position:sticky; top:0; z-index:100; background:rgba(10,10,10,0.92); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); padding:14px 20px; display:flex; align-items:center; justify-content:space-between; }
-    .header-left { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-    .header-logo { font-family:'Syne',sans-serif; font-weight:800; font-size:16px; letter-spacing:-0.5px; }
-    .badge { display:flex; align-items:center; gap:6px; border-radius:20px; padding:4px 12px; font-size:11px; font-weight:700; border:1px solid; }
-    .dot { width:7px; height:7px; border-radius:50%; animation:pulse 2s infinite; }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-    .btn-switch { background:none; border:1px solid var(--border); color:var(--muted); border-radius:8px; padding:7px 14px; cursor:pointer; font-family:'Space Mono',monospace; font-size:11px; transition:all 0.2s; }
-    .btn-switch:hover { border-color:#444; color:var(--text); }
+/* LOGIN */
+#login{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  height:100vh;
+}
 
-    main { max-width:700px; margin:0 auto; padding:28px 20px 60px; }
-    .presence { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:24px; }
-    .presence-chip { display:flex; align-items:center; gap:6px; border-radius:20px; padding:5px 12px; font-size:11px; border:1px solid; }
+.card{
+  background:#1a0b2e;
+  padding:16px;
+  margin:10px;
+  width:220px;
+  text-align:center;
+  border-radius:10px;
+  cursor:pointer;
+}
 
-    /* COMPOSE */
-    .compose { border-radius:18px; overflow:hidden; margin-bottom:28px; border:2px solid; background:#141414; }
-    .compose-header { display:flex; align-items:center; gap:8px; padding:10px 16px 6px; font-size:11px; font-weight:700; }
-    .compose textarea { width:100%; background:transparent; border:none; outline:none; color:var(--text); font-family:'Space Mono',monospace; font-size:14px; padding:8px 16px 14px; resize:none; line-height:1.7; }
-    .compose textarea::placeholder { color:#333; }
-    .compose-actions { display:flex; align-items:center; gap:8px; padding:10px 16px; border-top:1px solid var(--border); flex-wrap:wrap; }
-    .btn-action { background:none; border:1px solid var(--border); color:var(--muted); border-radius:8px; padding:7px 12px; cursor:pointer; font-size:13px; transition:all 0.2s; font-family:'Space Mono',monospace; }
-    .btn-action:hover { border-color:#555; color:var(--text); }
-    .btn-post { border:none; border-radius:10px; padding:9px 20px; cursor:pointer; font-family:'Syne',sans-serif; font-weight:700; font-size:13px; transition:all 0.2s; margin-left:auto; }
-    .btn-post:disabled { background:#222!important; color:#444; cursor:default; }
+.card:hover{
+  background:#7a2cff;
+}
 
-    .upload-progress { margin:0 16px 10px; height:3px; background:#222; border-radius:2px; overflow:hidden; display:none; }
-    .upload-bar { height:100%; border-radius:2px; transition:width 0.3s; width:0%; }
-    .img-preview-wrap { margin:0 16px 12px; position:relative; display:inline-block; }
-    .img-preview-wrap img { max-width:180px; max-height:140px; border-radius:10px; border:1px solid var(--border); }
-    .remove-img { position:absolute; top:-6px; right:-6px; background:#FF6B6B; border:none; color:white; border-radius:50%; width:22px; height:22px; cursor:pointer; font-size:12px; display:flex; align-items:center; justify-content:center; }
+/* APP */
+#app{
+  display:none;
+  height:100vh;
+  flex-direction:column;
+}
 
-    /* NOTES */
-    .notes-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
-    .notes-count { font-size:12px; color:var(--muted); }
-    .notes-list { display:flex; flex-direction:column; gap:12px; }
-    .note-card { background:var(--surface); border-radius:14px; padding:16px; border:1px solid; border-left-width:3px; animation:slideIn 0.3s cubic-bezier(.4,0,.2,1); }
-    @keyframes slideIn { from{opacity:0;transform:translateY(-10px)} to{opacity:1;transform:translateY(0)} }
-    .note-meta { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:6px; }
-    .note-author { display:flex; align-items:center; gap:7px; font-size:12px; font-weight:700; }
-    .note-actions { display:flex; align-items:center; gap:6px; }
-    .note-time { font-size:11px; color:var(--muted); }
-    .btn-delete { background:none; border:1px solid var(--border); color:var(--muted); border-radius:6px; padding:3px 9px; cursor:pointer; font-size:11px; transition:all 0.2s; }
-    .btn-delete:hover { border-color:var(--u1); color:var(--u1); }
-    .btn-voice { background:none; border:1px solid var(--border); color:var(--muted); border-radius:6px; padding:3px 9px; cursor:pointer; font-size:13px; transition:all 0.2s; }
-    .btn-voice:hover { border-color:#4ECDC4; color:#4ECDC4; }
-    .btn-voice.speaking { border-color:#4ECDC4; color:#4ECDC4; animation:voicePulse 1s infinite; }
-    @keyframes voicePulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
-    .note-content { font-size:14px; line-height:1.75; color:#E8E4DC; white-space:pre-wrap; word-break:break-word; }
-    .note-img { margin-top:12px; }
-    .note-img img { max-width:100%; border-radius:10px; border:1px solid var(--border); cursor:pointer; transition:opacity 0.2s; }
-    .note-img img:hover { opacity:0.85; }
+#messages{
+  flex:1;
+  overflow:auto;
+  padding:10px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
 
-    .empty { text-align:center; padding:60px 20px; border:1px dashed #222; border-radius:18px; }
-    .empty-icon { font-size:36px; margin-bottom:14px; }
-    .empty-text { color:var(--muted); font-size:13px; line-height:1.8; }
+.msg{
+  background:#1a0b2e;
+  padding:10px;
+  border-radius:10px;
+  max-width:70%;
+}
 
-    /* NOTIF BANNER */
-    .notif-banner { position:fixed; top:70px; left:50%; transform:translateX(-50%); background:#1A1A1A; border:1px solid #333; border-radius:14px; padding:12px 18px; display:flex; align-items:center; gap:10px; font-size:13px; z-index:200; animation:slideDown 0.3s ease; max-width:340px; width:90%; box-shadow:0 8px 32px rgba(0,0,0,0.5); }
-    @keyframes slideDown { from{opacity:0;transform:translateX(-50%) translateY(-10px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
-    .notif-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
-    .notif-close { background:none; border:none; color:var(--muted); cursor:pointer; font-size:18px; margin-left:auto; }
+.me{
+  background:#7a2cff;
+  align-self:flex-end;
+}
 
-    /* LIGHTBOX */
-    .lightbox { position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:300; display:flex; align-items:center; justify-content:center; padding:20px; cursor:pointer; }
-    .lightbox img { max-width:100%; max-height:90vh; border-radius:12px; }
+#input{
+  display:flex;
+  padding:10px;
+  background:#12061f;
+}
 
-    #sync-dot { font-size:11px; color:#333; }
-    input[type=file] { display:none; }
-  </style>
+textarea{
+  flex:1;
+}
+button{
+  margin-left:5px;
+}
+
+img{
+  max-width:180px;
+  border-radius:10px;
+}
+</style>
 </head>
+
 <body>
 
 <!-- LOGIN -->
 <div id="login">
-  <div class="login-title">📝 Bloc-Notes</div>
-  <div class="login-sub">Choisissez votre identité pour continuer</div>
-  <div class="user-cards">
-    <button class="user-card" onclick="login('user1','Personne 1','#FF6B6B','🔴')">
-      <div class="user-avatar" style="background:#FF6B6B22">🔴</div>
-      <div><div class="user-card-name" style="color:#FF6B6B">Personne 1</div><div class="user-card-hint" style="color:#FF6B6B">Se connecter →</div></div>
-    </button>
-    <button class="user-card" onclick="login('user2','Personne 2','#4ECDC4','🟢')">
-      <div class="user-avatar" style="background:#4ECDC422">🟢</div>
-      <div><div class="user-card-name" style="color:#4ECDC4">Personne 2</div><div class="user-card-hint" style="color:#4ECDC4">Se connecter →</div></div>
-    </button>
-    <button class="user-card" onclick="login('user3','Personne 3','#FFD93D','🟡')">
-      <div class="user-avatar" style="background:#FFD93D22">🟡</div>
-      <div><div class="user-card-name" style="color:#FFD93D">Personne 3</div><div class="user-card-hint" style="color:#FFD93D">Se connecter →</div></div>
-    </button>
-  </div>
-  <p style="color:#333;font-size:11px;margin-top:40px;text-align:center">Notes • Photos • Voix IA • Temps réel</p>
+  <h2>Choisis ton identité</h2>
+  <div class="card" onclick="login('Draco','Draco','#ff4d6d')">Draco</div>
+  <div class="card" onclick="login('Emer','Emer','#4ecdc4')">Emer</div>
+  <div class="card" onclick="login('Liam','Liam','#ffd93d')">Liam</div>
 </div>
 
 <!-- APP -->
 <div id="app">
-  <header>
-    <div class="header-left">
-      <span class="header-logo">📝 Bloc-Notes</span>
-      <div class="badge" id="user-badge"></div>
-    </div>
-    <div style="display:flex;align-items:center;gap:10px">
-      <span id="sync-dot"></span>
-      <button class="btn-switch" onclick="logout()">Changer</button>
-    </div>
-  </header>
 
-  <main>
-    <div class="presence" id="presence"></div>
+<div id="messages"></div>
 
-    <div class="compose" id="compose-box">
-      <div class="compose-header" id="compose-header"></div>
-      <textarea id="note-input" rows="3" placeholder="Écrivez une note..."></textarea>
-      <div class="upload-progress" id="upload-progress"><div class="upload-bar" id="upload-bar"></div></div>
-      <div id="img-preview-container"></div>
-      <div class="compose-actions">
-        <button class="btn-action" onclick="document.getElementById('file-input').click()">📷 Photo</button>
-        <input type="file" id="file-input" accept="image/*" onchange="handleImageSelect(event)" />
-        <button class="btn-post" id="btn-post" onclick="postNote()" disabled>Publier →</button>
-      </div>
-    </div>
+<div id="input">
+  <textarea id="text"></textarea>
+  <button onclick="send()">Send</button>
+</div>
 
-    <div class="notes-header">
-      <span class="notes-count" id="notes-count">0 note</span>
-      <span style="font-size:11px;color:#333" id="last-sync"></span>
-    </div>
-    <div class="notes-list" id="notes-list">
-      <div class="empty"><div class="empty-icon">✍️</div><div class="empty-text">Aucune note pour l'instant.<br/>Soyez le premier à écrire !</div></div>
-    </div>
-  </main>
 </div>
 
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getDatabase, ref, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-  const app = initializeApp({ databaseURL: "https://block-notes-a-3-default-rtdb.firebaseio.com/" });
-  const db = getDatabase(app);
-  const notesRef = ref(db, 'notes');
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-  const CLOUDINARY_CLOUD = "dmczuaq1s";
-  const CLOUDINARY_PRESET = "bloc-notes";
+/* ================= FIREBASE ================= */
+const app = initializeApp({
+  databaseURL: "https://block-notes-a-3-default-rtdb.firebaseio.com/"
+});
 
-  const USERS = {
-    user1: { name:'Personne 1', color:'#FF6B6B', emoji:'🔴' },
-    user2: { name:'Personne 2', color:'#4ECDC4', emoji:'🟢' },
-    user3: { name:'Personne 3', color:'#FFD93D', emoji:'🟡' },
-  };
+const db = getDatabase(app);
+const chatRef = ref(db,"chat");
 
-  let currentUser = null;
-  let pendingImageUrl = null;
-  let knownNoteIds = new Set();
-  let initialized = false;
-  let currentSpeech = null;
-  let speakingNoteId = null;
+/* ================= STATE ================= */
+let me = null;
+let myColor = "#fff";
+let msgs = [];
 
-  // ── NOTIFICATIONS ──
-  async function requestNotifPermission() {
-    if ('Notification' in window && Notification.permission === 'default') {
-      await Notification.requestPermission();
-    }
-  }
+/* ================= LOGIN ================= */
+window.login = function(id,name,color){
 
-  function showNotif(note) {
-    if (!currentUser || note.authorId === currentUser.id) return;
-    const user = USERS[note.authorId] || USERS.user1;
+  me = name;
+  myColor = color;
 
-    const banner = document.createElement('div');
-    banner.className = 'notif-banner';
-    banner.innerHTML = `
-      <div class="notif-dot" style="background:${user.color}"></div>
-      <span><strong style="color:${user.color}">${note.authorName}</strong> a publié${note.imageUrl ? ' une photo 📷' : ' une note'}</span>
-      <button class="notif-close" onclick="this.parentElement.remove()">×</button>`;
-    document.body.appendChild(banner);
-    setTimeout(() => banner?.remove(), 4500);
+  document.getElementById("login").style.display = "none";
+  document.getElementById("app").style.display = "flex";
+};
 
-    if (Notification.permission === 'granted') {
-      new Notification(`📝 ${note.authorName}`, {
-        body: note.content || '📷 Photo partagée',
-        icon: 'https://emojiapi.dev/api/v1/memo/64.png'
-      });
-    }
-  }
+/* ================= SEND ================= */
+window.send = function(){
 
-  // ── VOICE ──
-  window.speakNote = function(noteId, text, btnEl) {
-    if (!('speechSynthesis' in window)) {
-      alert("Votre navigateur ne supporte pas la synthèse vocale.");
-      return;
-    }
+  const text = document.getElementById("text").value;
+  if(!text) return;
 
-    // Stop if already speaking this note
-    if (speakingNoteId === noteId) {
-      window.speechSynthesis.cancel();
-      speakingNoteId = null;
-      btnEl.classList.remove('speaking');
-      btnEl.textContent = '🔊';
-      return;
-    }
-
-    // Stop any current speech
-    window.speechSynthesis.cancel();
-    document.querySelectorAll('.btn-voice.speaking').forEach(b => {
-      b.classList.remove('speaking');
-      b.textContent = '🔊';
-    });
-
-    if (!text.trim()) return;
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'fr-FR';
-    utterance.rate = 0.95;
-    utterance.pitch = 1.05;
-
-    // Try to pick a good French voice
-    const voices = window.speechSynthesis.getVoices();
-    const frVoice = voices.find(v => v.lang.startsWith('fr') && v.name.includes('Google'))
-      || voices.find(v => v.lang.startsWith('fr'));
-    if (frVoice) utterance.voice = frVoice;
-
-    speakingNoteId = noteId;
-    btnEl.classList.add('speaking');
-    btnEl.textContent = '⏹';
-
-    utterance.onend = () => {
-      speakingNoteId = null;
-      btnEl.classList.remove('speaking');
-      btnEl.textContent = '🔊';
-    };
-
-    utterance.onerror = () => {
-      speakingNoteId = null;
-      btnEl.classList.remove('speaking');
-      btnEl.textContent = '🔊';
-    };
-
-    window.speechSynthesis.speak(utterance);
-  };
-
-  // ── LOGIN ──
-  window.login = async function(id, name, color, emoji) {
-    currentUser = { id, name, color, emoji };
-    await requestNotifPermission();
-
-    document.getElementById('user-badge').innerHTML = `<div class="dot" style="background:${color}"></div><span style="color:${color}">${name}</span>`;
-    document.getElementById('user-badge').style.cssText += `background:${color}18;border-color:${color}55;`;
-    document.getElementById('compose-box').style.borderColor = color + '55';
-    document.getElementById('compose-header').innerHTML = `<div class="dot" style="background:${color};animation:none"></div><span style="color:${color}">${name}</span>`;
-    document.getElementById('btn-post').style.background = color;
-    document.getElementById('btn-post').style.color = '#000';
-
-    document.getElementById('presence').innerHTML = Object.entries(USERS).map(([uid, u]) => `
-      <div class="presence-chip" style="border-color:${uid===id?u.color+'88':'#222'};background:${uid===id?u.color+'18':'transparent'}">
-        <div style="width:6px;height:6px;border-radius:50%;background:${u.color}"></div>
-        <span style="color:${uid===id?u.color:'#444'}">${u.name}${uid===id?' (vous)':''}</span>
-      </div>`).join('');
-
-    document.getElementById('login').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
-  };
-
-  window.logout = function() {
-    window.speechSynthesis?.cancel();
-    currentUser = null; pendingImageUrl = null; initialized = false;
-    document.getElementById('login').style.display = 'flex';
-    document.getElementById('app').style.display = 'none';
-    document.getElementById('note-input').value = '';
-    document.getElementById('img-preview-container').innerHTML = '';
-    updatePostBtn();
-  };
-
-  // ── IMAGE UPLOAD ──
-  window.handleImageSelect = async function(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const progress = document.getElementById('upload-progress');
-    const bar = document.getElementById('upload-bar');
-    progress.style.display = 'block';
-    bar.style.background = currentUser?.color || '#4ECDC4';
-    bar.style.width = '30%';
-
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('upload_preset', CLOUDINARY_PRESET);
-
-    try {
-      bar.style.width = '60%';
-      const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, {
-        method: 'POST', body: formData
-      });
-      const data = await res.json();
-      bar.style.width = '100%';
-      setTimeout(() => { progress.style.display = 'none'; bar.style.width = '0%'; }, 500);
-
-      pendingImageUrl = data.secure_url;
-
-      const container = document.getElementById('img-preview-container');
-      container.innerHTML = `
-        <div class="img-preview-wrap">
-          <img src="${pendingImageUrl}" alt="preview" />
-          <button class="remove-img" onclick="removeImage()">×</button>
-        </div>`;
-      updatePostBtn();
-    } catch {
-      progress.style.display = 'none';
-      alert("Erreur lors de l'upload. Réessayez.");
-    }
-    e.target.value = '';
-  };
-
-  window.removeImage = function() {
-    pendingImageUrl = null;
-    document.getElementById('img-preview-container').innerHTML = '';
-    updatePostBtn();
-  };
-
-  function updatePostBtn() {
-    const hasText = document.getElementById('note-input')?.value.trim().length > 0;
-    const btn = document.getElementById('btn-post');
-    if (btn) btn.disabled = !hasText && !pendingImageUrl;
-  }
-
-  document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('note-input').addEventListener('input', updatePostBtn);
-    document.getElementById('note-input').addEventListener('keydown', e => {
-      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) window.postNote();
-    });
+  push(chatRef,{
+    name: me,
+    color: myColor,
+    text: text,
+    time: Date.now()
   });
 
-  // ── POST NOTE ──
-  window.postNote = function() {
-    const content = document.getElementById('note-input').value.trim();
-    if (!content && !pendingImageUrl) return;
-    if (!currentUser) return;
+  document.getElementById("text").value = "";
+};
 
-    push(notesRef, {
-      content: content || '',
-      imageUrl: pendingImageUrl || null,
-      authorId: currentUser.id,
-      authorName: currentUser.name,
-      color: currentUser.color,
-      createdAt: Date.now()
-    });
+/* ================= REALTIME ================= */
+onValue(chatRef,(snap)=>{
 
-    document.getElementById('note-input').value = '';
-    pendingImageUrl = null;
-    document.getElementById('img-preview-container').innerHTML = '';
-    updatePostBtn();
-  };
+  const data = snap.val();
+  msgs = [];
 
-  window.deleteNote = function(key) {
-    remove(ref(db, 'notes/' + key));
-  };
-
-  // ── LIGHTBOX ──
-  window.openLightbox = function(src) {
-    const lb = document.createElement('div');
-    lb.className = 'lightbox';
-    lb.innerHTML = `<img src="${src}" alt="image" />`;
-    lb.onclick = () => lb.remove();
-    document.body.appendChild(lb);
-  };
-
-  // ── RENDER NOTES ──
-  function formatDate(ts) {
-    const d = new Date(ts);
-    const today = new Date();
-    const t = d.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
-    return d.toDateString() === today.toDateString()
-      ? `Aujourd'hui à ${t}`
-      : d.toLocaleDateString('fr-FR', { day:'numeric', month:'short' }) + ` à ${t}`;
+  for(let id in data){
+    msgs.push(data[id]);
   }
 
-  onValue(notesRef, (snapshot) => {
-    const data = snapshot.val();
-    const list = document.getElementById('notes-list');
-    const countEl = document.getElementById('notes-count');
+  render();
+});
 
-    document.getElementById('sync-dot').textContent = '↻';
-    setTimeout(() => document.getElementById('sync-dot').textContent = '', 1200);
-    document.getElementById('last-sync').textContent = 'Mis à jour ' + new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
+/* ================= RENDER ================= */
+function render(){
 
-    if (!data) {
-      countEl.textContent = '0 note';
-      list.innerHTML = `<div class="empty"><div class="empty-icon">✍️</div><div class="empty-text">Aucune note pour l'instant.<br/>Soyez le premier à écrire !</div></div>`;
-      initialized = true;
-      return;
-    }
+  const box = document.getElementById("messages");
+  box.innerHTML = "";
 
-    const notes = Object.entries(data).map(([key, val]) => ({ key, ...val })).sort((a,b) => b.createdAt - a.createdAt);
-    countEl.textContent = `${notes.length} note${notes.length > 1 ? 's' : ''}`;
+  msgs.forEach(m => {
 
-    // Detect new notes for notifications
-    if (initialized) {
-      notes.forEach(n => {
-        if (!knownNoteIds.has(n.key)) showNotif(n);
-      });
-    }
-    knownNoteIds = new Set(notes.map(n => n.key));
-    initialized = true;
+    const div = document.createElement("div");
+    div.className = "msg " + (m.name === me ? "me" : "");
 
-    list.innerHTML = notes.map(n => {
-      const isOwn = currentUser && n.authorId === currentUser.id;
-      const safeContent = (n.content || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-      return `
-        <div class="note-card" style="border-color:${n.color}33;border-left-color:${n.color}">
-          <div class="note-meta">
-            <div class="note-author">
-              <div style="width:8px;height:8px;border-radius:50%;background:${n.color}"></div>
-              <span style="color:${n.color}">${n.authorName}</span>
-            </div>
-            <div class="note-actions">
-              <span class="note-time">${formatDate(n.createdAt)}</span>
-              ${n.content ? `<button class="btn-voice" onclick="speakNote('${n.key}', ${JSON.stringify(n.content)}, this)" title="Lire à voix haute">🔊</button>` : ''}
-              ${isOwn ? `<button class="btn-delete" onclick="deleteNote('${n.key}')">✕</button>` : ''}
-            </div>
-          </div>
-          ${safeContent ? `<div class="note-content">${safeContent}</div>` : ''}
-          ${n.imageUrl ? `<div class="note-img"><img src="${n.imageUrl}" alt="image" onclick="openLightbox('${n.imageUrl}')" loading="lazy" /></div>` : ''}
-        </div>`;
-    }).join('');
+    div.style.borderLeft = "3px solid " + m.color;
+
+    div.innerHTML = `
+      <b style="color:${m.color}">${m.name}</b><br>
+      ${m.text}
+      <br>
+      <button onclick="speak('${m.text}')">🔊</button>
+    `;
+
+    box.appendChild(div);
   });
+}
+
+/* ================= VOICE ================= */
+window.speak = function(text){
+
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "fr-FR";
+  speechSynthesis.cancel();
+  speechSynthesis.speak(u);
+};
+
 </script>
+
 </body>
 </html>
