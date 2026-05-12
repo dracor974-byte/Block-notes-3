@@ -1,3 +1,145 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Omori Chat Ultimate</title>
+
+<style>
+body{
+  margin:0;
+  font-family:Arial;
+  background:linear-gradient(135deg,#1a0033,#3a005a,#5a0030);
+  color:white;
+}
+
+/* LOGIN */
+#login{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  height:100vh;
+}
+
+.card{
+  background:#1a0b2e;
+  padding:16px;
+  margin:10px;
+  width:220px;
+  text-align:center;
+  border-radius:10px;
+  cursor:pointer;
+}
+
+.card:hover{ background:#7a2cff; }
+
+/* APP */
+#app{
+  display:none;
+  height:100vh;
+  flex-direction:row;
+}
+
+/* SIDEBAR */
+#sidebar{
+  width:200px;
+  background:#12061f;
+  padding:10px;
+}
+
+.channel{
+  padding:12px;
+  margin:6px;
+  background:#1a0b2e;
+  border-radius:10px;
+  cursor:pointer;
+}
+
+.channel.active{ background:#7a2cff; }
+
+/* CHAT */
+#chat{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+}
+
+#messages{
+  flex:1;
+  overflow:auto;
+  padding:10px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.msg{
+  background:#1a0b2e;
+  padding:10px;
+  border-radius:10px;
+  max-width:70%;
+}
+
+.me{ background:#7a2cff; align-self:flex-end; }
+
+img, audio{
+  max-width:180px;
+  border-radius:10px;
+  margin-top:5px;
+}
+
+#input{
+  display:flex;
+  padding:10px;
+  background:#12061f;
+  gap:5px;
+}
+
+textarea{ flex:1; }
+button{ cursor:pointer; }
+</style>
+</head>
+
+<body>
+
+<!-- LOGIN -->
+<div id="login">
+  <h2>Choisis ton identité</h2>
+  <div class="card" onclick="login('Draco','Draco','#ff4d6d')">Draco</div>
+  <div class="card" onclick="login('Emer','Emer','#4ecdc4')">Emer</div>
+  <div class="card" onclick="login('Liam','Liam','#ffd93d')">Liam</div>
+</div>
+
+<!-- APP -->
+<div id="app">
+
+<!-- CHANNELS -->
+<div id="sidebar">
+  <div class="channel active" onclick="switchChannel('general',this)"># general</div>
+  <div class="channel" onclick="switchChannel('games',this)"># games</div>
+  <div class="channel" onclick="switchChannel('irl',this)"># irl</div>
+</div>
+
+<!-- CHAT -->
+<div id="chat">
+
+<div id="messages"></div>
+
+<div id="input">
+  <textarea id="text"></textarea>
+
+  <input type="file" id="img" accept="image/*" hidden>
+  <button onclick="document.getElementById('img').click()">📎</button>
+
+  <button onclick="startVoice()">🎤</button>
+
+  <button onclick="send()">Send</button>
+</div>
+
+</div>
+</div>
+
 <script type="module">
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -18,6 +160,8 @@ let channel = "general";
 let imageBase64 = null;
 let replyTo = null;
 let msgs = [];
+let mediaRecorder;
+let audioChunks = [];
 
 /* ================= LOGIN ================= */
 window.login = function(id,name,col){
@@ -50,6 +194,40 @@ document.getElementById("img").onchange = function(e){
   reader.readAsDataURL(file);
 };
 
+/* ================= VOICE RECORD ================= */
+window.startVoice = async function(){
+
+  const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+
+  mediaRecorder = new MediaRecorder(stream);
+  audioChunks = [];
+
+  mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+
+  mediaRecorder.onstop = () => {
+
+    const blob = new Blob(audioChunks,{type:"audio/webm"});
+    const reader = new FileReader();
+
+    reader.onload = () => {
+
+      push(chatRef,{
+        name:me,
+        color,
+        audio:reader.result,
+        channel,
+        time:Date.now()
+      });
+
+    };
+
+    reader.readAsDataURL(blob);
+  };
+
+  mediaRecorder.start();
+  setTimeout(()=>mediaRecorder.stop(),5000);
+};
+
 /* ================= REPLY ================= */
 window.reply = function(msg){
   replyTo = { name: msg.name, text: msg.text || "" };
@@ -57,22 +235,16 @@ window.reply = function(msg){
     "Réponse à " + msg.name;
 };
 
-/* ================= PINS ================= */
-window.pinMessage = function(msg){
-
-  push(chatRef,{
-    ...msg,
-    pinned:true,
-    time:Date.now()
-  });
-
-  notify("📌 Message épinglé", "#ffd93d");
-};
+/* ================= PING ================= */
+function extractMentions(text){
+  return text?.match(/@\w+/g) || [];
+}
 
 /* ================= SEND ================= */
 window.send = function(){
 
   const text = document.getElementById("text").value;
+
   if(!text && !imageBase64) return;
 
   push(chatRef,{
@@ -80,8 +252,10 @@ window.send = function(){
     color,
     text,
     img:imageBase64 || null,
+    audio:null,
     channel,
     reply:replyTo,
+    mentions:extractMentions(text),
     pinned:false,
     time:Date.now()
   });
@@ -109,7 +283,6 @@ function notify(text,col){
   `;
 
   d.innerText = text;
-
   document.body.appendChild(d);
 
   setTimeout(()=>d.remove(),3000);
@@ -122,7 +295,7 @@ onValue(chatRef,(snap)=>{
   msgs = [];
 
   for(let id in data){
-    msgs.push({id,...data[id]});
+    msgs.push(data[id]);
   }
 
   render();
@@ -134,48 +307,56 @@ function render(){
   const box = document.getElementById("messages");
   box.innerHTML = "";
 
-  let filtered = msgs.filter(m => m.channel === channel);
+  msgs
+    .filter(m => m.channel === channel)
+    .forEach(m => {
 
-  /* 👉 PINS ALWAYS FIRST */
-  const pinned = filtered.filter(m => m.pinned);
-  const normal = filtered.filter(m => !m.pinned);
+      const isPing = m.mentions?.includes("@" + me);
 
-  const finalList = [...pinned,...normal];
+      const div = document.createElement("div");
+      div.className = "msg " + (m.name === me ? "me" : "");
+      div.style.borderLeft = "3px solid " + m.color;
 
-  finalList.forEach(m => {
+      if(m.pinned){
+        div.style.boxShadow = "0 0 10px #ffd93d";
+      }
 
-    const div = document.createElement("div");
-    div.className = "msg " + (m.name === me ? "me" : "");
-    div.style.borderLeft = "3px solid " + m.color;
+      if(isPing){
+        div.style.boxShadow = "0 0 10px #ff4d6d";
+      }
 
-    if(m.pinned){
-      div.style.boxShadow = "0 0 10px #ffd93d";
-    }
+      div.innerHTML = `
+        <b style="color:${m.color}">${m.name}</b>
 
-    div.innerHTML = `
-      <b style="color:${m.color}">${m.name}</b>
+        ${m.reply ? `
+          <div style="font-size:11px;color:#888">
+            ↳ ${m.reply.name} : ${m.reply.text}
+          </div>
+        ` : ""}
 
-      ${m.pinned ? `<div style="color:#ffd93d;font-size:11px">📌 PINNED</div>` : ""}
+        <div>${m.text || ""}</div>
 
-      ${m.reply ? `
-        <div style="font-size:11px;color:#888">
-          ↳ ${m.reply.name} : ${m.reply.text}
-        </div>
-      ` : ""}
+        ${m.img ? `<img src="${m.img}">` : ""}
 
-      <div>${m.text || ""}</div>
+        ${m.audio ? `<audio controls src="${m.audio}"></audio>` : ""}
 
-      ${m.img ? `<img src="${m.img}">` : ""}
+        ${isPing ? `<div style="color:#ff4d6d;font-size:11px">📢 Ping</div>` : ""}
 
-      <br>
+        ${m.pinned ? `<div style="color:#ffd93d;font-size:11px">📌 PINNED</div>` : ""}
 
-      <button onclick="reply(${JSON.stringify(m).replace(/"/g,'&quot;')})">↩</button>
+        <br>
 
-      <button onclick="pinMessage(${JSON.stringify(m).replace(/"/g,'&quot;')})">📌</button>
-    `;
+        <button onclick="reply(${JSON.stringify(m).replace(/"/g,'&quot;')})">↩</button>
+      `;
 
-    box.appendChild(div);
-  });
+      box.appendChild(div);
+
+      if(isPing){
+        notify("📢 Ping reçu", "#ff4d6d");
+      }
+    });
 }
 
 </script>
+</body>
+</html>
