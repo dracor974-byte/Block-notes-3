@@ -3,11 +3,9 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Omori Chat Final</title>
+<title>Omori Chat Final Save</title>
 
 <style>
-
-/* 🌈 BACKGROUND */
 body{
   margin:0;
   font-family:Arial;
@@ -24,13 +22,8 @@ body{
   100%{background-position:0% 50%}
 }
 
-/* APP */
-#app{
-  display:flex;
-  height:100vh;
-}
+#app{display:flex;height:100vh}
 
-/* SIDEBAR */
 #sidebar{
   width:220px;
   background:rgba(20,10,40,0.75);
@@ -47,16 +40,9 @@ body{
   background:#1b0f2e;
 }
 
-.channel.active{
-  background:#7a2cff;
-}
+.channel.active{background:#7a2cff}
 
-/* CHAT */
-#chat{
-  flex:1;
-  display:flex;
-  flex-direction:column;
-}
+#chat{flex:1;display:flex;flex-direction:column}
 
 #top{
   height:50px;
@@ -67,7 +53,6 @@ body{
   border-bottom:1px solid #3a1a5a;
 }
 
-/* MESSAGES */
 #messages{
   flex:1;
   overflow:auto;
@@ -90,7 +75,6 @@ body{
   background:linear-gradient(135deg,#7a2cff,#ff2e6f);
 }
 
-/* reply */
 .reply{
   font-size:11px;
   opacity:0.7;
@@ -99,7 +83,6 @@ body{
   margin-bottom:5px;
 }
 
-/* INPUT */
 #input{
   display:flex;
   padding:10px;
@@ -126,7 +109,6 @@ button{
   cursor:pointer;
 }
 
-/* LOGIN */
 #login{
   display:flex;
   flex-direction:column;
@@ -145,11 +127,7 @@ button{
   cursor:pointer;
 }
 
-img,video{
-  max-width:200px;
-  border-radius:10px;
-}
-
+img,video{max-width:200px;border-radius:10px}
 </style>
 </head>
 
@@ -179,7 +157,6 @@ img,video{
 
 <div id="input">
   <textarea id="text"></textarea>
-
   <input type="file" id="img" accept="image/*" hidden>
   <input type="file" id="vid" accept="video/*" hidden>
 
@@ -202,15 +179,29 @@ let dataStore={
   futur:[]
 };
 
+/* 💾 SAVE / LOAD */
+function save(){
+  localStorage.setItem("chatData", JSON.stringify(dataStore));
+}
+
+function load(){
+  const data = localStorage.getItem("chatData");
+  if(data){
+    dataStore = JSON.parse(data);
+  }
+}
+
 /* LOGIN */
 window.setUser=(name)=>{
   me=name;
   document.getElementById("login").style.display="none";
   document.getElementById("app").style.display="flex";
+
+  load(); // 🔥 restore data
   render();
 };
 
-/* SWITCH */
+/* SWITCH CHANNEL */
 window.switchRoom=(room,el)=>{
   current=room;
   document.querySelectorAll(".channel").forEach(c=>c.classList.remove("active"));
@@ -218,7 +209,7 @@ window.switchRoom=(room,el)=>{
   render();
 };
 
-/* BASE64 FILE */
+/* FILE */
 function toBase64(file){
   return new Promise(res=>{
     const r=new FileReader();
@@ -235,10 +226,11 @@ document.getElementById("img").onchange=async(e)=>{
     type:"img",
     url,
     name:me,
-    reply:window.replyTo || null
+    reply:window.replyTo||null
   });
 
   window.replyTo=null;
+  save();
   render();
 };
 
@@ -250,10 +242,11 @@ document.getElementById("vid").onchange=async(e)=>{
     type:"video",
     url,
     name:me,
-    reply:window.replyTo || null
+    reply:window.replyTo||null
   });
 
   window.replyTo=null;
+  save();
   render();
 };
 
@@ -266,11 +259,12 @@ window.send=()=>{
     type:"text",
     text,
     name:me,
-    reply:window.replyTo || null
+    reply:window.replyTo||null
   });
 
   window.replyTo=null;
   document.getElementById("text").value="";
+  save();
   render();
 };
 
@@ -280,7 +274,7 @@ window.reply=(text)=>{
   document.getElementById("text").placeholder="Replying to: "+text;
 };
 
-/* 🔊 VOICE SYSTEM (AJOUT FINAL) */
+/* VOICE */
 function speak(text){
   if(!text || !('speechSynthesis' in window)) return;
 
@@ -289,11 +283,10 @@ function speak(text){
   const u=new SpeechSynthesisUtterance(text);
 
   u.lang="fr-FR";
-  u.rate=0.88;
+  u.rate=0.9;
   u.pitch=1.05;
 
   const voices=speechSynthesis.getVoices();
-
   const voice=
     voices.find(v=>v.lang==="fr-FR" && v.name.toLowerCase().includes("google")) ||
     voices.find(v=>v.lang==="fr-FR") ||
@@ -305,8 +298,6 @@ function speak(text){
 
   speechSynthesis.speak(u);
 }
-
-speechSynthesis.onvoiceschanged=()=>{};
 
 /* RENDER */
 function render(){
@@ -339,8 +330,8 @@ function render(){
       <b>${m.name}</b><br>
       ${content}
       <br>
-      <button onclick="reply('${m.text || "media"}')">↩ reply</button>
-      <button onclick="speak(\`${(m.text || "").replace(/`/g,"")}\`)">🔊</button>
+      <button onclick="reply('${m.text || "media"}')">↩</button>
+      <button onclick="speak(\`${(m.text||"").replace(/`/g,"")}\`)">🔊</button>
     `;
 
     box.appendChild(div);
