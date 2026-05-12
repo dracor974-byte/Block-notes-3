@@ -3,19 +3,19 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Omori Chat</title>
+<title>Omori Chat Fix</title>
 
 <style>
 
-/* 🌈 BACKGROUND GRADIENT (REMPLACE VIDEO) */
+/* 🌈 BACKGROUND */
 body{
   margin:0;
   font-family:Arial;
   color:white;
   height:100vh;
-  background: linear-gradient(135deg, #1a0033, #2b004f, #5a0033, #2a0040);
+  background: linear-gradient(135deg,#1a0033,#3a005a,#5a0030,#2a0040);
   background-size:400% 400%;
-  animation: bg 10s ease infinite;
+  animation: bg 12s ease infinite;
 }
 
 @keyframes bg{
@@ -25,12 +25,15 @@ body{
 }
 
 /* APP */
-#app{display:flex;height:100vh}
+#app{
+  display:flex;
+  height:100vh;
+}
 
 /* SIDEBAR */
 #sidebar{
   width:220px;
-  background:rgba(20,10,40,0.7);
+  background:rgba(20,10,40,0.75);
   backdrop-filter:blur(10px);
   padding:12px;
   border-right:1px solid #3a1a5a;
@@ -38,10 +41,15 @@ body{
 
 .channel{
   padding:10px;
-  border-radius:10px;
   margin-bottom:8px;
+  border-radius:10px;
   cursor:pointer;
   background:#1b0f2e;
+  transition:0.2s;
+}
+
+.channel:hover{
+  background:#2d1350;
 }
 
 .channel.active{
@@ -49,7 +57,11 @@ body{
 }
 
 /* CHAT */
-#chat{flex:1;display:flex;flex-direction:column}
+#chat{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+}
 
 #top{
   height:50px;
@@ -60,7 +72,7 @@ body{
   border-bottom:1px solid #3a1a5a;
 }
 
-/* MSG */
+/* MESSAGES */
 #messages{
   flex:1;
   overflow:auto;
@@ -83,7 +95,7 @@ body{
   background:linear-gradient(135deg,#7a2cff,#ff2e6f);
 }
 
-/* REPLY BOX */
+/* reply */
 .reply{
   font-size:11px;
   opacity:0.7;
@@ -109,6 +121,7 @@ textarea{
   color:white;
 }
 
+/* buttons */
 button{
   margin-left:6px;
   padding:10px;
@@ -138,6 +151,11 @@ button{
   cursor:pointer;
 }
 
+img,video{
+  max-width:200px;
+  border-radius:10px;
+}
+
 </style>
 </head>
 
@@ -155,9 +173,9 @@ button{
 <div id="app" style="display:none">
 
 <div id="sidebar">
-  <div class="channel active">🎬 série</div>
-  <div class="channel">🎮 jeux</div>
-  <div class="channel">🚀 futur</div>
+  <div class="channel active" onclick="switchRoom('serie',this)">🎬 série</div>
+  <div class="channel" onclick="switchRoom('jeux',this)">🎮 jeux</div>
+  <div class="channel" onclick="switchRoom('futur',this)">🚀 futur</div>
 </div>
 
 <div id="chat">
@@ -167,6 +185,12 @@ button{
 
 <div id="input">
   <textarea id="text"></textarea>
+
+  <input type="file" id="img" accept="image/*" hidden>
+  <input type="file" id="vid" accept="video/*" hidden>
+
+  <button onclick="document.getElementById('img').click()">📷</button>
+  <button onclick="document.getElementById('vid').click()">🎥</button>
   <button onclick="send()">Send</button>
 </div>
 
@@ -176,23 +200,80 @@ button{
 <script>
 
 let me=null;
-let messages=[];
+let current="serie";
+
+let dataStore={
+  serie:[],
+  jeux:[],
+  futur:[]
+};
 
 /* LOGIN */
 window.setUser=(name)=>{
   me=name;
   document.getElementById("login").style.display="none";
   document.getElementById("app").style.display="flex";
+  render();
 };
 
-/* SEND */
+/* SWITCH CHANNEL FIX */
+window.switchRoom=(room,el)=>{
+  current=room;
+
+  document.querySelectorAll(".channel").forEach(c=>c.classList.remove("active"));
+  el.classList.add("active");
+
+  render();
+};
+
+/* FILE → BASE64 */
+function toBase64(file){
+  return new Promise(res=>{
+    const r=new FileReader();
+    r.onload=()=>res(r.result);
+    r.readAsDataURL(file);
+  });
+}
+
+/* IMAGE */
+document.getElementById("img").onchange=async(e)=>{
+  let url=await toBase64(e.target.files[0]);
+
+  dataStore[current].push({
+    type:"img",
+    url,
+    name:me,
+    reply:window.replyTo || null
+  });
+
+  window.replyTo=null;
+  render();
+};
+
+/* VIDEO */
+document.getElementById("vid").onchange=async(e)=>{
+  let url=await toBase64(e.target.files[0]);
+
+  dataStore[current].push({
+    type:"video",
+    url,
+    name:me,
+    reply:window.replyTo || null
+  });
+
+  window.replyTo=null;
+  render();
+};
+
+/* TEXT */
 window.send=()=>{
   let text=document.getElementById("text").value;
   if(!text)return;
 
-  messages.push({
-    name:me,
+  dataStore[current].push({
+    type:"text",
     text,
+    name:me,
     reply:window.replyTo || null
   });
 
@@ -212,11 +293,23 @@ function render(){
   let box=document.getElementById("messages");
   box.innerHTML="";
 
-  messages.forEach(m=>{
+  dataStore[current].forEach(m=>{
 
     let replyHTML = m.reply
       ? `<div class="reply">↳ ${m.reply}</div>`
       : "";
+
+    let content="";
+
+    if(m.type==="img"){
+      content=`<img src="${m.url}"/>`;
+    }
+    else if(m.type==="video"){
+      content=`<video src="${m.url}" controls></video>`;
+    }
+    else{
+      content=m.text;
+    }
 
     let div=document.createElement("div");
     div.className="msg "+(m.name===me?"me":"other");
@@ -224,9 +317,9 @@ function render(){
     div.innerHTML=`
       ${replyHTML}
       <b>${m.name}</b><br>
-      ${m.text}
+      ${content}
       <br>
-      <button onclick="reply('${m.text}')">↩ reply</button>
+      <button onclick="reply('${m.text || "media"}')">↩ reply</button>
     `;
 
     box.appendChild(div);
