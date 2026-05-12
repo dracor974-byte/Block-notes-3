@@ -35,31 +35,39 @@ body{
 /* APP */
 #app{display:none;padding:12px}
 
-/* ROOM BAR */
+/* ROOM HEADER */
+.roomTitle{
+  font-size:22px;
+  font-weight:bold;
+  margin-bottom:5px;
+}
+
 .roomBar{
   display:flex;
   gap:10px;
   overflow-x:auto;
   padding:10px 0;
-  margin-bottom:10px;
 }
 
+/* ROOMS COLORS */
 .roomBtn{
-  padding:10px 14px;
-  border-radius:20px;
+  padding:12px 16px;
+  border-radius:25px;
   border:none;
   cursor:pointer;
-  background:#1a1a1a;
   color:white;
-  transition:0.2s;
+  font-weight:bold;
   white-space:nowrap;
+  transition:0.2s;
+  transform:scale(1);
 }
 
-.roomBtn.active{
-  background:#4ECDC4;
-  color:black;
-  transform:scale(1.05);
-}
+.roomBtn.active{transform:scale(1.1)}
+
+/* COLORS */
+.serie{background:#FF6B6B;}
+.jeux{background:#4ECDC4;color:black;}
+.futur{background:#FFD93D;color:black;}
 
 /* CHAT */
 textarea{
@@ -88,7 +96,23 @@ button{
 
 .voiceBtn{
   margin-left:8px;
-  cursor:pointer;
+}
+
+/* 🎤 HOLD BUTTON */
+#voiceHold{
+  background:#333;
+  color:white;
+  padding:12px;
+  border-radius:10px;
+  text-align:center;
+  margin-top:8px;
+  user-select:none;
+}
+
+#voiceHold.active{
+  background:#4ECDC4;
+  color:black;
+  transform:scale(1.05);
 }
 
 audio{
@@ -103,7 +127,6 @@ audio{
 <!-- LOGIN -->
 <div id="login">
   <h2>Choisis ton perso</h2>
-
   <div class="card" onclick="login('user1')">🔥 Draco</div>
   <div class="card" onclick="login('user2')">💎 Emer</div>
   <div class="card" onclick="login('user3')">⚡ Liam</div>
@@ -112,19 +135,23 @@ audio{
 <!-- APP -->
 <div id="app">
 
-<h3 id="user"></h3>
+<div id="user"></div>
 
-<!-- ROOMS (MODERN UI) -->
+<!-- ROOMS TITLE -->
+<div class="roomTitle" id="roomTitle">🎬 Série</div>
+
 <div class="roomBar">
-  <button class="roomBtn active" onclick="switchRoom('serie',this)">🎬 Série</button>
-  <button class="roomBtn" onclick="switchRoom('jeux',this)">🎮 Jeux</button>
-  <button class="roomBtn" onclick="switchRoom('futur',this)">🚀 Futur</button>
+  <button class="roomBtn serie active" onclick="switchRoom('serie',this)">🎬 Série</button>
+  <button class="roomBtn jeux" onclick="switchRoom('jeux',this)">🎮 Jeux</button>
+  <button class="roomBtn futur" onclick="switchRoom('futur',this)">🚀 Futur</button>
 </div>
 
 <textarea id="text" placeholder="Écris un message..."></textarea>
 
 <button onclick="send()">Envoyer</button>
-<button onclick="startVoice()">🎤 Enregistrer vocal</button>
+
+<!-- 🎤 HOLD TO RECORD -->
+<div id="voiceHold">🎤 Maintenir pour enregistrer vocal</div>
 
 <div id="notes"></div>
 
@@ -166,12 +193,14 @@ window.login=(id)=>{
   document.getElementById("app").style.display="block";
 
   document.getElementById("user").innerHTML=
-    `<span style="color:${currentUser.color}">${currentUser.name}</span>`;
+    `<h3 style="color:${currentUser.color}">
+      ${currentUser.name}
+    </h3>`;
 
   listenRoom();
 };
 
-/* SWITCH ROOM (UI FIX) */
+/* SWITCH ROOM */
 window.switchRoom=(room,btn)=>{
   currentRoom=room;
 
@@ -180,6 +209,14 @@ window.switchRoom=(room,btn)=>{
   });
 
   if(btn) btn.classList.add("active");
+
+  const titles={
+    serie:"🎬 Série",
+    jeux:"🎮 Jeux",
+    futur:"🚀 Futur"
+  };
+
+  document.getElementById("roomTitle").innerText=titles[room];
 
   listenRoom();
 };
@@ -200,7 +237,7 @@ window.send=()=>{
   document.getElementById("text").value="";
 };
 
-/* 🔊 TEXT TO SPEECH */
+/* 🔊 VOIX */
 window.speak=(text,btn)=>{
   window.speechSynthesis.cancel();
 
@@ -215,8 +252,24 @@ window.speak=(text,btn)=>{
   speechSynthesis.speak(u);
 };
 
-/* 🎤 FIXED VOICE MESSAGE */
-window.startVoice=async()=>{
+/* 🎤 HOLD TO RECORD (FIX) */
+const holdBtn=document.getElementById("voiceHold");
+
+let recording=false;
+
+holdBtn.addEventListener("mousedown",start);
+holdBtn.addEventListener("touchstart",start);
+
+holdBtn.addEventListener("mouseup",stop);
+holdBtn.addEventListener("mouseleave",stop);
+holdBtn.addEventListener("touchend",stop);
+
+async function start(){
+  if(recording||!currentUser)return;
+
+  recording=true;
+  holdBtn.classList.add("active");
+
   const stream=await navigator.mediaDevices.getUserMedia({audio:true});
 
   recorder=new MediaRecorder(stream);
@@ -227,59 +280,18 @@ window.startVoice=async()=>{
   recorder.ondataavailable=e=>{
     chunks.push(e.data);
   };
+}
+
+function stop(){
+  if(!recording)return;
+
+  recording=false;
+  holdBtn.classList.remove("active");
+
+  recorder.stop();
 
   recorder.onstop=()=>{
     const blob=new Blob(chunks,{type:"audio/webm"});
     const reader=new FileReader();
 
-    reader.readAsDataURL(blob);
-
-    reader.onloadend=()=>{
-      push(rooms[currentRoom],{
-        voice:reader.result,
-        name:currentUser.name,
-        color:currentUser.color,
-        id:currentUser.id,
-        time:Date.now()
-      });
-    };
-  };
-
-  setTimeout(()=>recorder.stop(),4000);
-};
-
-/* 💬 LIVE CHAT */
-function listenRoom(){
-  onValue(rooms[currentRoom],snap=>{
-    const data=snap.val();
-    const box=document.getElementById("notes");
-    box.innerHTML="";
-
-    if(!data)return;
-
-    Object.entries(data).reverse().forEach(([id,n])=>{
-
-      const div=document.createElement("div");
-      div.className="note";
-
-      div.innerHTML=`
-        <b style="color:${n.color}">${n.name}</b><br/>
-
-        ${n.text ? `
-          ${n.text}
-          <button class="voiceBtn" onclick="speak('${n.text}',this)">🔊</button>
-        ` : ""}
-
-        ${n.voice ? `
-          <audio controls src="${n.voice}"></audio>
-        ` : ""}
-      `;
-
-      box.appendChild(div);
-    });
-  });
-}
-
-</script>
-</body>
-</html>
+    reader.readAsDataURL
