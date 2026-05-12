@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Omori Chat Online</title>
+<title>Chat Fix</title>
 
 <style>
 body{
@@ -13,30 +13,22 @@ body{
   color:white;
 }
 
-/* ===== LOGIN ===== */
+/* LOGIN */
 #login{
   display:flex;
   flex-direction:column;
   align-items:center;
   justify-content:center;
   height:100vh;
-  background:linear-gradient(135deg,#0a0015,#2a0040);
-}
-
-#login h2{
-  font-size:32px;
-  margin-bottom:20px;
-  color:#caa6ff;
 }
 
 .card{
   background:#1a0b2e;
   padding:16px;
-  margin:8px;
-  width:240px;
+  margin:10px;
+  width:200px;
   text-align:center;
-  font-size:22px;
-  border-radius:12px;
+  border-radius:10px;
   cursor:pointer;
 }
 
@@ -44,50 +36,30 @@ body{
   background:#7a2cff;
 }
 
-/* ===== APP ===== */
+/* APP */
 #app{
   display:none;
-  flex-direction:row;
   height:100vh;
-}
-
-#sidebar{
-  width:200px;
-  background:#12061f;
-  padding:10px;
-}
-
-.channel{
-  padding:12px;
-  margin:6px;
-  background:#1d0a2e;
-  border-radius:10px;
-  cursor:pointer;
-}
-
-.channel.active{
-  background:#7a2cff;
+  flex-direction:column;
 }
 
 #messages{
   flex:1;
-  overflow:auto;
   padding:10px;
-  display:flex;
-  flex-direction:column;
-  gap:10px;
+  overflow:auto;
 }
 
 .msg{
-  padding:10px;
   background:#1a0b2e;
+  padding:10px;
+  margin:5px;
   border-radius:10px;
   max-width:70%;
 }
 
 .me{
-  align-self:flex-end;
   background:#7a2cff;
+  align-self:flex-end;
 }
 
 #input{
@@ -96,12 +68,11 @@ body{
   background:#12061f;
 }
 
-textarea{flex:1}
-button{margin-left:5px}
-
-img{
-  max-width:200px;
-  border-radius:10px;
+textarea{
+  flex:1;
+}
+button{
+  margin-left:5px;
 }
 </style>
 </head>
@@ -119,150 +90,65 @@ img{
 <!-- APP -->
 <div id="app">
 
-<div id="sidebar">
-  <div class="channel active" onclick="switchRoom('serie',this)">Série</div>
-  <div class="channel" onclick="switchRoom('jeux',this)">Jeux</div>
-  <div class="channel" onclick="switchRoom('futur',this)">Futur</div>
-</div>
-
-<div id="chat">
-
 <div id="messages"></div>
 
 <div id="input">
   <textarea id="text"></textarea>
-  <input type="file" id="file" hidden>
-  <button onclick="document.getElementById('file').click()">📎</button>
-  <button onclick="send()">Send</button>
+  <button onclick="send()">Envoyer</button>
 </div>
 
 </div>
-</div>
 
-<script type="module">
+<script>
 
-/* ================= FIREBASE ================= */
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-
-const firebaseConfig = {
-  apiKey: "XXX",
-  authDomain: "XXX",
-  databaseURL: "XXX",
-  projectId: "XXX"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-const chatRef = ref(db,"chat");
-
-/* ================= STATE ================= */
+/* ===== STATE ===== */
 let me = null;
-let room = "serie";
 let msgs = [];
 
-/* ================= LOGIN FIX ================= */
-window.login = function(name){
+/* ===== LOGIN (FIX GARANTI) ===== */
+function login(name){
+
+  console.log("LOGIN OK:", name);
 
   me = name;
 
   document.getElementById("login").style.display = "none";
   document.getElementById("app").style.display = "flex";
-};
+}
+window.login = login;
 
-/* ================= ROOM ================= */
-window.switchRoom = function(r,el){
+/* ===== SEND ===== */
+function send(){
 
-  room = r;
+  let text = document.getElementById("text").value;
+  if(!text) return;
 
-  document.querySelectorAll(".channel")
-    .forEach(c => c.classList.remove("active"));
-
-  el.classList.add("active");
-
-  render();
-};
-
-/* ================= SEND ================= */
-window.send = function(){
-
-  const text = document.getElementById("text").value;
-  if(!text && !window.pendingImg) return;
-
-  push(chatRef,{
+  msgs.push({
     name: me,
-    text: text || "",
-    img: window.pendingImg || null,
-    room,
-    time: Date.now()
+    text: text
   });
 
   document.getElementById("text").value = "";
-  window.pendingImg = null;
-};
-
-/* ================= IMAGE ================= */
-document.getElementById("file").onchange = (e)=>{
-
-  const file = e.target.files[0];
-  const reader = new FileReader();
-
-  reader.onload = ()=>{
-    window.pendingImg = reader.result;
-  };
-
-  reader.readAsDataURL(file);
-};
-
-/* ================= REALTIME ================= */
-onValue(chatRef,(snap)=>{
-
-  const data = snap.val();
-  msgs = [];
-
-  for(let id in data){
-    msgs.push(data[id]);
-  }
 
   render();
-});
+}
 
-/* ================= RENDER ================= */
+/* ===== RENDER ===== */
 function render(){
 
   const box = document.getElementById("messages");
   box.innerHTML = "";
 
-  msgs
-    .filter(m => m.room === room)
-    .forEach(m => {
+  msgs.forEach(m => {
 
-      const div = document.createElement("div");
-      div.className = "msg " + (m.name === me ? "me" : "");
+    const div = document.createElement("div");
+    div.className = "msg " + (m.name === me ? "me" : "");
 
-      div.innerHTML = `
-        <b>${m.name}</b><br>
-        ${m.text || ""}
-        ${m.img ? `<img src="${m.img}">` : ""}
-        <button onclick="speak('${m.text || ""}')">🔊</button>
-      `;
+    div.innerHTML = `<b>${m.name}</b><br>${m.text}`;
 
-      box.appendChild(div);
-    });
+    box.appendChild(div);
+  });
 }
-
-/* ================= VOICE ================= */
-window.speak = function(text){
-  if(!text) return;
-
-  speechSynthesis.cancel();
-
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = "fr-FR";
-  u.rate = 0.95;
-
-  speechSynthesis.speak(u);
-};
 
 </script>
 
