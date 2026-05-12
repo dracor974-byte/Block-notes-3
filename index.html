@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Chat Multijoueur</title>
+<title>Chat Channels</title>
 
 <style>
 body{
@@ -32,14 +32,38 @@ body{
   cursor:pointer;
 }
 
-.card:hover{
-  background:#7a2cff;
-}
+.card:hover{ background:#7a2cff; }
 
 /* APP */
 #app{
   display:none;
   height:100vh;
+  flex-direction:row;
+}
+
+/* CHANNELS */
+#sidebar{
+  width:200px;
+  background:#12061f;
+  padding:10px;
+}
+
+.channel{
+  padding:12px;
+  margin:6px;
+  background:#1a0b2e;
+  border-radius:10px;
+  cursor:pointer;
+}
+
+.channel.active{
+  background:#7a2cff;
+}
+
+/* CHAT */
+#chat{
+  flex:1;
+  display:flex;
   flex-direction:column;
 }
 
@@ -70,16 +94,14 @@ body{
   background:#12061f;
 }
 
-textarea{
-  flex:1;
-}
-button{
-  margin-left:5px;
-}
+textarea{ flex:1; }
+
+button{ margin-left:5px; }
 
 img{
   max-width:180px;
   border-radius:10px;
+  margin-top:5px;
 }
 </style>
 </head>
@@ -97,13 +119,26 @@ img{
 <!-- APP -->
 <div id="app">
 
+<!-- SIDEBAR CHANNELS -->
+<div id="sidebar">
+  <div class="channel active" onclick="switchChannel('general',this)"># general</div>
+  <div class="channel" onclick="switchChannel('games',this)"># games</div>
+  <div class="channel" onclick="switchChannel('irl',this)"># irl</div>
+</div>
+
+<!-- CHAT -->
+<div id="chat">
+
 <div id="messages"></div>
 
 <div id="input">
   <textarea id="text"></textarea>
+  <input type="file" id="img" accept="image/*" hidden>
+  <button onclick="document.getElementById('img').click()">📎</button>
   <button onclick="send()">Send</button>
 </div>
 
+</div>
 </div>
 
 <script type="module">
@@ -121,33 +156,64 @@ const chatRef = ref(db,"chat");
 
 /* ================= STATE ================= */
 let me = null;
-let myColor = "#fff";
+let color = "#fff";
+let channel = "general";
+let imageBase64 = null;
 let msgs = [];
 
 /* ================= LOGIN ================= */
-window.login = function(id,name,color){
+window.login = function(id,name,col){
 
   me = name;
-  myColor = color;
+  color = col;
 
   document.getElementById("login").style.display = "none";
   document.getElementById("app").style.display = "flex";
+};
+
+/* ================= CHANNEL ================= */
+window.switchChannel = function(name,el){
+
+  channel = name;
+
+  document.querySelectorAll(".channel")
+    .forEach(c => c.classList.remove("active"));
+
+  el.classList.add("active");
+
+  render();
+};
+
+/* ================= IMAGE ================= */
+document.getElementById("img").onchange = function(e){
+
+  const file = e.target.files[0];
+  const reader = new FileReader();
+
+  reader.onload = () => {
+    imageBase64 = reader.result;
+  };
+
+  reader.readAsDataURL(file);
 };
 
 /* ================= SEND ================= */
 window.send = function(){
 
   const text = document.getElementById("text").value;
-  if(!text) return;
+  if(!text && !imageBase64) return;
 
   push(chatRef,{
     name: me,
-    color: myColor,
-    text: text,
+    color,
+    text: text || "",
+    img: imageBase64 || null,
+    channel,
     time: Date.now()
   });
 
   document.getElementById("text").value = "";
+  imageBase64 = null;
 };
 
 /* ================= REALTIME ================= */
@@ -169,32 +235,23 @@ function render(){
   const box = document.getElementById("messages");
   box.innerHTML = "";
 
-  msgs.forEach(m => {
+  msgs
+    .filter(m => m.channel === channel)
+    .forEach(m => {
 
-    const div = document.createElement("div");
-    div.className = "msg " + (m.name === me ? "me" : "");
+      const div = document.createElement("div");
+      div.className = "msg " + (m.name === me ? "me" : "");
+      div.style.borderLeft = "3px solid " + m.color;
 
-    div.style.borderLeft = "3px solid " + m.color;
+      div.innerHTML = `
+        <b style="color:${m.color}">${m.name}</b><br>
+        ${m.text || ""}
+        ${m.img ? `<br><img src="${m.img}">` : ""}
+      `;
 
-    div.innerHTML = `
-      <b style="color:${m.color}">${m.name}</b><br>
-      ${m.text}
-      <br>
-      <button onclick="speak('${m.text}')">🔊</button>
-    `;
-
-    box.appendChild(div);
-  });
+      box.appendChild(div);
+    });
 }
-
-/* ================= VOICE ================= */
-window.speak = function(text){
-
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = "fr-FR";
-  speechSynthesis.cancel();
-  speechSynthesis.speak(u);
-};
 
 </script>
 
