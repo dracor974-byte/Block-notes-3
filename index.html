@@ -3,16 +3,18 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Chat Worlds</title>
+<title>Chat Worlds Pro</title>
 
 <style>
 body{
   margin:0;
   font-family:Arial;
-  background: radial-gradient(circle at top,#111,#070707);
+  background: linear-gradient(120deg,#0a0a0a,#111,#0a0a0a);
   color:white;
+  overflow-x:hidden;
 }
 
+/* LOGIN */
 #login{
   display:flex;
   flex-direction:column;
@@ -25,21 +27,16 @@ body{
   background:#141414;
   padding:12px;
   margin:8px;
-  border-radius:10px;
+  border-radius:12px;
   cursor:pointer;
   width:180px;
   text-align:center;
 }
 
+/* APP */
 #app{display:none;padding:12px}
 
 /* ROOMS */
-.roomTitle{
-  font-size:22px;
-  font-weight:bold;
-  margin-bottom:5px;
-}
-
 .roomBar{
   display:flex;
   gap:10px;
@@ -49,22 +46,58 @@ body{
 
 .roomBtn{
   padding:12px 16px;
-  border-radius:25px;
+  border-radius:999px;
   border:none;
   cursor:pointer;
-  color:white;
   font-weight:bold;
-  white-space:nowrap;
   transition:0.2s;
+  white-space:nowrap;
+  opacity:0.7;
 }
 
-.roomBtn.active{transform:scale(1.1)}
+.roomBtn.active{
+  transform:scale(1.08);
+  opacity:1;
+}
 
-.serie{background:#FF6B6B;}
-.jeux{background:#4ECDC4;color:black;}
-.futur{background:#FFD93D;color:black;}
+.serie{background:#ff4d4d;color:white}
+.jeux{background:#4ECDC4;color:black}
+.futur{background:#FFD93D;color:black}
 
 /* CHAT */
+#notes{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.note{
+  max-width:80%;
+  padding:10px;
+  border-radius:14px;
+  animation:pop 0.2s ease;
+}
+
+@keyframes pop{
+  from{transform:scale(0.9);opacity:0}
+  to{transform:scale(1);opacity:1}
+}
+
+/* BUBBLES */
+.me{
+  background:#4ECDC4;
+  color:black;
+  align-self:flex-end;
+  border-bottom-right-radius:4px;
+}
+
+.other{
+  background:#1a1a1a;
+  align-self:flex-start;
+  border-bottom-left-radius:4px;
+}
+
+/* INPUT */
 textarea{
   width:100%;
   padding:10px;
@@ -74,32 +107,26 @@ textarea{
   border-radius:10px;
 }
 
-button{
-  padding:10px;
-  border:none;
-  border-radius:8px;
-  cursor:pointer;
-  margin-top:5px;
-}
-
-/* MESSAGE */
-.note{
-  background:linear-gradient(145deg,#1a1a1a,#111);
+/* VOICE HOLD */
+#hold{
+  background:#222;
   padding:12px;
-  margin:10px 0;
-  border-radius:12px;
-  border:1px solid #222;
-  animation:pop 0.2s ease;
+  margin-top:8px;
+  border-radius:10px;
+  text-align:center;
+  user-select:none;
 }
 
-@keyframes pop{
-  from{transform:scale(0.95);opacity:0}
-  to{transform:scale(1);opacity:1}
+#hold.active{
+  background:#4ECDC4;
+  color:black;
 }
 
-.voiceBtn{margin-left:8px;cursor:pointer}
-
-audio{width:100%;margin-top:8px}
+/* AUDIO */
+audio{
+  width:100%;
+  margin-top:6px;
+}
 </style>
 </head>
 
@@ -118,8 +145,6 @@ audio{width:100%;margin-top:8px}
 
 <h3 id="user"></h3>
 
-<div class="roomTitle" id="roomTitle">🎬 Série</div>
-
 <div class="roomBar">
   <button class="roomBtn serie active" onclick="switchRoom('serie',this)">🎬 Série</button>
   <button class="roomBtn jeux" onclick="switchRoom('jeux',this)">🎮 Jeux</button>
@@ -129,7 +154,8 @@ audio{width:100%;margin-top:8px}
 <textarea id="text" placeholder="Écris un message..."></textarea>
 
 <button onclick="send()">Envoyer</button>
-<button onclick="startVoice()">🎤 Vocal</button>
+
+<div id="hold">🎤 Appuie pour enregistrer</div>
 
 <div id="notes"></div>
 
@@ -146,179 +172,132 @@ const app = initializeApp({
 
 const db = getDatabase(app);
 
-const rooms = {
-  serie: ref(db,"serie"),
-  jeux: ref(db,"jeux"),
-  futur: ref(db,"futur")
+const rooms={
+  serie:ref(db,"serie"),
+  jeux:ref(db,"jeux"),
+  futur:ref(db,"futur")
 };
 
-const USERS = {
-  user1:{name:"Draco",color:"#FF6B6B"},
+const USERS={
+  user1:{name:"Draco",color:"#ff4d4d"},
   user2:{name:"Emer",color:"#4ECDC4"},
   user3:{name:"Liam",color:"#FFD93D"}
 };
 
-let currentUser=null;
-let currentRoom="serie";
-let recorder;
-let chunks=[];
-let lastNotif=0;
-
-/* 🔔 NOTIF PERMISSION */
-function askNotif(){
-  if("Notification" in window){
-    Notification.requestPermission();
-  }
-}
-
-function notify(title,body){
-  if(Notification.permission!=="granted") return;
-
-  new Notification(title,{
-    body,
-    icon:"https://emojiapi.dev/api/v1/speech_balloon/64.png"
-  });
-
-  if(navigator.vibrate){
-    navigator.vibrate(200);
-  }
-}
+let me=null;
+let room="serie";
+let rec,chunks=[];
 
 /* LOGIN */
 window.login=(id)=>{
-  currentUser={id,...USERS[id]};
-
+  me={id,...USERS[id]};
   document.getElementById("login").style.display="none";
   document.getElementById("app").style.display="block";
-
-  document.getElementById("user").innerHTML=
-    `<span style="color:${currentUser.color}">${currentUser.name}</span>`;
-
-  askNotif();
-  listenRoom();
+  document.getElementById("user").innerHTML=me.name;
+  listen();
 };
 
-/* SWITCH ROOM */
-window.switchRoom=(room,btn)=>{
-  currentRoom=room;
-
-  document.querySelectorAll(".roomBtn").forEach(b=>b.classList.remove("active"));
-  if(btn) btn.classList.add("active");
-
-  const titles={
-    serie:"🎬 Série",
-    jeux:"🎮 Jeux",
-    futur:"🚀 Futur"
-  };
-
-  document.getElementById("roomTitle").innerText=titles[room];
-
-  listenRoom();
+/* ROOM */
+window.switchRoom=(r,b)=>{
+  room=r;
+  document.querySelectorAll(".roomBtn").forEach(x=>x.classList.remove("active"));
+  b.classList.add("active");
+  listen();
 };
 
-/* SEND TEXT */
+/* SEND */
 window.send=()=>{
-  const text=document.getElementById("text").value;
-  if(!text||!currentUser)return;
+  let t=document.getElementById("text").value;
+  if(!t)return;
 
-  push(rooms[currentRoom],{
-    text,
-    name:currentUser.name,
-    color:currentUser.color,
-    id:currentUser.id,
+  push(rooms[room],{
+    text:t,
+    name:me.name,
+    id:me.id,
+    color:me.color,
     time:Date.now()
   });
 
   document.getElementById("text").value="";
 };
 
-/* 🔊 VOICE TEXT */
-window.speak=(text,btn)=>{
-  window.speechSynthesis.cancel();
+/* 🔔 NOTIF CLEAN */
+function notify(title,body){
+  if(Notification.permission==="granted"){
+    new Notification(title,{body});
+    navigator.vibrate?.(150);
+  }
+}
 
-  const u=new SpeechSynthesisUtterance(text);
-  u.lang="fr-FR";
-  u.rate=0.92;
-
-  btn.innerText="⏹";
-
-  u.onend=()=>btn.innerText="🔊";
-
-  speechSynthesis.speak(u);
-};
-
-/* 🎤 VOICE RECORD */
-window.startVoice=async()=>{
-  const stream=await navigator.mediaDevices.getUserMedia({audio:true});
-
-  recorder=new MediaRecorder(stream);
-  chunks=[];
-
-  recorder.start();
-
-  recorder.ondataavailable=e=>chunks.push(e.data);
-
-  recorder.onstop=()=>{
-    const blob=new Blob(chunks,{type:"audio/webm"});
-    const reader=new FileReader();
-
-    reader.readAsDataURL(blob);
-
-    reader.onloadend=()=>{
-      push(rooms[currentRoom],{
-        voice:reader.result,
-        name:currentUser.name,
-        color:currentUser.color,
-        id:currentUser.id,
-        time:Date.now()
-      });
-    };
-  };
-
-  setTimeout(()=>recorder.stop(),4000);
-};
-
-/* 💬 LIVE CHAT + 🔔 NOTIF */
-function listenRoom(){
-  onValue(rooms[currentRoom],snap=>{
-    const data=snap.val();
-    const box=document.getElementById("notes");
+/* 🔊 LISTEN */
+function listen(){
+  onValue(rooms[room],snap=>{
+    let data=snap.val();
+    let box=document.getElementById("notes");
     box.innerHTML="";
 
     if(!data)return;
 
-    Object.entries(data).reverse().forEach(([id,n])=>{
+    Object.values(data).reverse().forEach(n=>{
 
-      /* 🔔 NOTIF ANTI SPAM */
-      const now=Date.now();
-      if(
-        currentUser &&
-        n.id!==currentUser.id &&
-        now-lastNotif>2000
-      ){
-        notify("💬 "+n.name,n.text||"Message vocal");
-        lastNotif=now;
+      const isMe=n.id===me.id;
+
+      if(!isMe && Math.random()<0.3){
+        notify("💬 "+n.name,n.text||"🎤 vocal");
       }
 
-      const div=document.createElement("div");
-      div.className="note";
+      let div=document.createElement("div");
+      div.className="note "+(isMe?"me":"other");
 
       div.innerHTML=`
         <b style="color:${n.color}">${n.name}</b><br/>
-
-        ${n.text?`
-          ${n.text}
-          <button class="voiceBtn" onclick="speak('${n.text}',this)">🔊</button>
-        `:""}
-
-        ${n.voice?`
-          <audio controls src="${n.voice}"></audio>
-        `:""}
+        ${n.text||""}
+        ${n.voice?`<audio controls src="${n.voice}"></audio>`:""}
       `;
 
       box.appendChild(div);
     });
   });
+}
+
+/* 🎤 HOLD RECORD */
+let hold=document.getElementById("hold");
+
+hold.addEventListener("mousedown",start);
+hold.addEventListener("mouseup",stop);
+hold.addEventListener("touchstart",start);
+hold.addEventListener("touchend",stop);
+
+async function start(){
+  hold.classList.add("active");
+
+  let stream=await navigator.mediaDevices.getUserMedia({audio:true});
+  rec=new MediaRecorder(stream);
+  chunks=[];
+
+  rec.start();
+  rec.ondataavailable=e=>chunks.push(e.data);
+}
+
+function stop(){
+  hold.classList.remove("active");
+  rec.stop();
+
+  rec.onstop=()=>{
+    let blob=new Blob(chunks,{type:"audio/webm"});
+    let r=new FileReader();
+
+    r.readAsDataURL(blob);
+    r.onloadend=()=>{
+      push(rooms[room],{
+        voice:r.result,
+        name:me.name,
+        id:me.id,
+        color:me.color,
+        time:Date.now()
+      });
+    };
+  };
 }
 
 </script>
