@@ -3,18 +3,16 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Chat App</title>
 
-<title>Chat App PWA</title>
-
-<!-- PWA -->
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#4ECDC4">
+<meta name="theme-color" content="#5865F2">
 
 <style>
 body{
   margin:0;
   font-family:Arial;
-  background:#0f0f13;
+  background:#1e1f22;
   color:white;
 }
 
@@ -24,27 +22,38 @@ body{
   height:100vh;
 }
 
-/* SIDEBAR */
+/* SIDEBAR (Discord style) */
 #sidebar{
-  width:180px;
-  background:#15151d;
+  width:220px;
+  background:#2b2d31;
   padding:10px;
   display:flex;
   flex-direction:column;
-  gap:10px;
+  gap:8px;
 }
 
-.room{
+.title{
+  font-weight:bold;
+  margin-bottom:10px;
+  color:#5865F2;
+}
+
+/* CHANNELS */
+.channel{
   padding:10px;
-  background:#222;
   border-radius:8px;
   cursor:pointer;
-  text-align:center;
+  background:#313338;
+  transition:0.2s;
 }
 
-.room.active{
-  background:#4ECDC4;
-  color:black;
+.channel:hover{
+  background:#3a3c42;
+}
+
+.channel.active{
+  background:#5865F2;
+  color:white;
 }
 
 /* CHAT */
@@ -54,69 +63,77 @@ body{
   flex-direction:column;
 }
 
+/* TOP BAR */
 #top{
-  padding:10px;
-  background:#15151d;
+  height:50px;
+  background:#2b2d31;
   display:flex;
-  justify-content:space-between;
   align-items:center;
+  padding:0 15px;
+  font-weight:bold;
 }
 
+/* MESSAGES */
 #messages{
   flex:1;
-  padding:10px;
   overflow:auto;
+  padding:15px;
   display:flex;
   flex-direction:column;
   gap:10px;
 }
 
-/* MESSAGE */
+/* MESSAGE STYLE DISCORD */
 .msg{
+  max-width:70%;
   padding:10px;
   border-radius:10px;
-  max-width:70%;
-  word-break:break-word;
+  background:#2b2d31;
+  border-left:3px solid #5865F2;
 }
 
 .me{
   align-self:flex-end;
-  background:#4ECDC4;
-  color:black;
+  background:#5865F2;
+  color:white;
+  border-left:none;
 }
 
 .other{
   align-self:flex-start;
-  background:#222;
 }
 
+/* NAME */
 .name{
-  font-weight:bold;
+  font-size:12px;
+  opacity:0.7;
+  margin-bottom:3px;
 }
 
 /* INPUT */
 #input{
   display:flex;
   padding:10px;
-  background:#15151d;
+  background:#2b2d31;
 }
 
 textarea{
   flex:1;
-  padding:8px;
+  padding:10px;
   border:none;
-  border-radius:6px;
-  background:#222;
+  border-radius:8px;
+  background:#1e1f22;
   color:white;
 }
 
 button{
-  margin-left:5px;
-  background:#4ECDC4;
+  margin-left:8px;
+  background:#5865F2;
   border:none;
-  padding:8px;
-  border-radius:6px;
+  padding:10px;
+  border-radius:8px;
   cursor:pointer;
+  color:white;
 }
 
 /* LOGIN */
@@ -129,10 +146,10 @@ button{
 }
 
 .card{
-  background:#222;
-  padding:10px;
+  background:#2b2d31;
+  padding:12px;
   margin:8px;
-  width:160px;
+  width:180px;
   text-align:center;
   border-radius:10px;
   cursor:pointer;
@@ -144,7 +161,7 @@ button{
 
 <!-- LOGIN -->
 <div id="login">
-  <h2>Qui es-tu ?</h2>
+  <h2>Choisis ton profil</h2>
   <div class="card" onclick="setUser('Draco','#ff4d6d')">🔥 Draco</div>
   <div class="card" onclick="setUser('Emer','#4ECDC4')">💎 Emer</div>
   <div class="card" onclick="setUser('Liam','#FFD93D')">⚡ Liam</div>
@@ -155,23 +172,23 @@ button{
 
 <!-- SIDEBAR -->
 <div id="sidebar">
-  <div class="room active" onclick="switchRoom('serie',this)">🎬 Série</div>
-  <div class="room" onclick="switchRoom('jeux',this)">🎮 Jeux</div>
-  <div class="room" onclick="switchRoom('futur',this)">🚀 Futur</div>
+  <div class="title">💬 Channels</div>
+
+  <div class="channel active" onclick="switchRoom('serie',this)">🎬 série</div>
+  <div class="channel" onclick="switchRoom('jeux',this)">🎮 jeux</div>
+  <div class="channel" onclick="switchRoom('futur',this)">🚀 futur</div>
 </div>
 
 <!-- CHAT -->
 <div id="chat">
 
-<div id="top">
-  <div id="title">Chat</div>
-</div>
+<div id="top"># chat</div>
 
 <div id="messages"></div>
 
 <div id="input">
   <textarea id="text"></textarea>
-  <button onclick="send()">Send</button>
+  <button onclick="send()">Envoyer</button>
 </div>
 
 </div>
@@ -198,8 +215,8 @@ const rooms={
 let me=null;
 let current="serie";
 
-/* PWA REGISTER */
-if ("serviceWorker" in navigator) {
+/* PWA */
+if("serviceWorker" in navigator){
   navigator.serviceWorker.register("sw.js");
 }
 
@@ -216,8 +233,12 @@ window.setUser=(name,color)=>{
 /* SWITCH ROOM */
 window.switchRoom=(r,el)=>{
   current=r;
-  document.querySelectorAll(".room").forEach(b=>b.classList.remove("active"));
+
+  document.querySelectorAll(".channel")
+    .forEach(c=>c.classList.remove("active"));
+
   el.classList.add("active");
+
   listen();
 };
 
@@ -236,21 +257,6 @@ window.send=()=>{
   document.getElementById("text").value="";
 };
 
-/* VOIX */
-window.speak=(txt,btn)=>{
-  window.speechSynthesis.cancel();
-
-  let u=new SpeechSynthesisUtterance(txt);
-  u.lang="fr-FR";
-  u.rate=0.95;
-
-  btn.innerText="⏹";
-
-  u.onend=()=>btn.innerText="🔊";
-
-  speechSynthesis.speak(u);
-};
-
 /* CHAT */
 function listen(){
   onValue(rooms[current],snap=>{
@@ -262,9 +268,10 @@ function listen(){
 
     Object.values(data).forEach(m=>{
 
-      const isMe = me && m.name === me.name;
+      const isMe = me && m.name===me.name;
 
       let div=document.createElement("div");
+
       div.className="msg "+(isMe?"me":"other");
 
       div.innerHTML=`
@@ -272,7 +279,6 @@ function listen(){
           ${m.name}
         </div>
         ${m.text}
-        <button onclick="speak('${m.text}',this)">🔊</button>
       `;
 
       box.appendChild(div);
