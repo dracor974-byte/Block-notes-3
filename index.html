@@ -18,8 +18,6 @@ let channel = "general";
 let imageBase64 = null;
 let replyTo = null;
 let msgs = [];
-let mediaRecorder;
-let audioChunks = [];
 
 /* ================= LOGIN ================= */
 window.login = function(id,name,col){
@@ -52,41 +50,6 @@ document.getElementById("img").onchange = function(e){
   reader.readAsDataURL(file);
 };
 
-/* ================= VOICE RECORD ================= */
-window.startVoice = async function(){
-
-  const stream = await navigator.mediaDevices.getUserMedia({audio:true});
-
-  mediaRecorder = new MediaRecorder(stream);
-  audioChunks = [];
-
-  mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-
-  mediaRecorder.onstop = () => {
-
-    const blob = new Blob(audioChunks,{type:"audio/webm"});
-    const reader = new FileReader();
-
-    reader.onload = () => {
-
-      push(chatRef,{
-        name:me,
-        color,
-        audio:reader.result,
-        channel,
-        pinned:false,
-        time:Date.now()
-      });
-
-    };
-
-    reader.readAsDataURL(blob);
-  };
-
-  mediaRecorder.start();
-  setTimeout(()=>mediaRecorder.stop(),5000);
-};
-
 /* ================= REPLY ================= */
 window.reply = function(msg){
   replyTo = { name: msg.name, text: msg.text || "" };
@@ -94,12 +57,7 @@ window.reply = function(msg){
     "Réponse à " + msg.name;
 };
 
-/* ================= PING SYSTEM ================= */
-function extractMentions(text){
-  return text?.match(/@\w+/g) || [];
-}
-
-/* ================= PIN ================= */
+/* ================= PINS ================= */
 window.pinMessage = function(msg){
 
   push(chatRef,{
@@ -122,10 +80,8 @@ window.send = function(){
     color,
     text,
     img:imageBase64 || null,
-    audio:null,
     channel,
     reply:replyTo,
-    mentions:extractMentions(text),
     pinned:false,
     time:Date.now()
   });
@@ -135,7 +91,7 @@ window.send = function(){
   replyTo = null;
 };
 
-/* ================= NOTIFICATION ================= */
+/* ================= NOTIFY ================= */
 function notify(text,col){
 
   const d = document.createElement("div");
@@ -155,6 +111,7 @@ function notify(text,col){
   d.innerText = text;
 
   document.body.appendChild(d);
+
   setTimeout(()=>d.remove(),3000);
 }
 
@@ -165,7 +122,7 @@ onValue(chatRef,(snap)=>{
   msgs = [];
 
   for(let id in data){
-    msgs.push(data[id]);
+    msgs.push({id,...data[id]});
   }
 
   render();
@@ -179,7 +136,7 @@ function render(){
 
   let filtered = msgs.filter(m => m.channel === channel);
 
-  /* 📌 PIN FIRST */
+  /* 👉 PINS ALWAYS FIRST */
   const pinned = filtered.filter(m => m.pinned);
   const normal = filtered.filter(m => !m.pinned);
 
@@ -187,18 +144,12 @@ function render(){
 
   finalList.forEach(m => {
 
-    const isPing = m.mentions?.includes("@" + me);
-
     const div = document.createElement("div");
     div.className = "msg " + (m.name === me ? "me" : "");
     div.style.borderLeft = "3px solid " + m.color;
 
     if(m.pinned){
       div.style.boxShadow = "0 0 10px #ffd93d";
-    }
-
-    if(isPing){
-      div.style.boxShadow = "0 0 10px #ff4d6d";
     }
 
     div.innerHTML = `
@@ -216,8 +167,6 @@ function render(){
 
       ${m.img ? `<img src="${m.img}">` : ""}
 
-      ${m.audio ? `<audio controls src="${m.audio}"></audio>` : ""}
-
       <br>
 
       <button onclick="reply(${JSON.stringify(m).replace(/"/g,'&quot;')})">↩</button>
@@ -226,10 +175,6 @@ function render(){
     `;
 
     box.appendChild(div);
-
-    if(isPing){
-      notify("📢 Ping reçu", "#ff4d6d");
-    }
   });
 }
 
