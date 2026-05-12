@@ -1,251 +1,123 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Omori Chat Online</title>
-
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#7a2cff">
-
-<style>
-body{
-  margin:0;
-  font-family:Arial;
-  color:white;
-  height:100vh;
-  background:linear-gradient(135deg,#1a0033,#3a005a,#5a0030);
-}
-
-#app{display:flex;height:100vh}
-
-#sidebar{
-  width:200px;
-  background:#12061f;
-  padding:10px;
-}
-
-.channel{
-  padding:10px;
-  margin:6px;
-  background:#1d0a2e;
-  border-radius:10px;
-  cursor:pointer;
-}
-
-.channel.active{background:#7a2cff}
-
-#chat{flex:1;display:flex;flex-direction:column}
-
-#messages{
-  flex:1;
-  overflow:auto;
-  padding:10px;
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-}
-
-.msg{
-  padding:10px;
-  background:#1a0b2e;
-  border-radius:10px;
-  max-width:70%;
-}
-
-.me{align-self:flex-end;background:#7a2cff}
-
-#input{
-  display:flex;
-  padding:10px;
-  background:#12061f;
-}
-
-textarea{
-  flex:1;
-}
-
-button{margin-left:5px}
-
-img,video{max-width:200px;border-radius:10px}
-
-#login{
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  height:100vh;
-}
-
-.card{
-  background:#1a0b2e;
-  padding:10px;
-  margin:5px;
-  cursor:pointer;
-}
-</style>
-</head>
-
-<body>
-
-<!-- LOGIN -->
-<div id="login">
-  <h2>Choisis ton perso</h2>
-  <div class="card" onclick="setUser('Draco')">Draco</div>
-  <div class="card" onclick="setUser('Emer')">Emer</div>
-  <div class="card" onclick="setUser('Liam')">Liam</div>
-</div>
-
-<!-- APP -->
-<div id="app" style="display:none">
-
-<div id="sidebar">
-  <div class="channel active" onclick="switchRoom('serie',this)">Série</div>
-  <div class="channel" onclick="switchRoom('jeux',this)">Jeux</div>
-  <div class="channel" onclick="switchRoom('futur',this)">Futur</div>
-</div>
-
-<div id="chat">
-
-<div id="messages"></div>
-
-<div id="input">
-  <textarea id="text"></textarea>
-  <input type="file" id="file" hidden>
-  <button onclick="document.getElementById('file').click()">📎</button>
-  <button onclick="send()">Send</button>
-</div>
-
-</div>
-</div>
-
-<script type="module">
-
-/* 🔥 FIREBASE */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import {
-  getDatabase,
-  ref,
-  push,
-  onValue
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
+/* 🔥 FIREBASE CONFIG */
 const firebaseConfig = {
-  apiKey: "YOUR_KEY",
-  authDomain: "YOUR_DOMAIN",
-  databaseURL: "YOUR_DB",
-  projectId: "YOUR_ID"
+  apiKey: "XXX",
+  authDomain: "XXX",
+  databaseURL: "XXX",
+  projectId: "XXX",
+  appId: "XXX"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
-const msgRef = ref(db,"messages");
+const notesRef = ref(db, "chat_notes");
 
-/* DATA */
-let me=null;
-let current="serie";
-let messages=[];
+/* STATE */
+let currentUser = null;
+let currentRoom = "serie";
+let cloudNotes = [];
 
 /* LOGIN */
-window.setUser=(name)=>{
-  me=name;
+window.login = function(id,name,color,emoji){
+  currentUser = {id,name,color,emoji};
+
   document.getElementById("login").style.display="none";
-  document.getElementById("app").style.display="flex";
+  document.getElementById("app").style.display="block";
+
+  Notification.requestPermission();
 };
 
-/* ROOM */
-window.switchRoom=(r,el)=>{
-  current=r;
+/* SWITCH ROOM */
+window.switchRoom = function(room,el){
+  currentRoom = room;
   document.querySelectorAll(".channel").forEach(c=>c.classList.remove("active"));
   el.classList.add("active");
   render();
 };
 
-/* SEND */
-window.send=()=>{
-  let text=document.getElementById("text").value;
-  if(!text)return;
+/* SEND MESSAGE (FIREBASE + IMAGE + TEXT) */
+window.postNote = function(){
 
-  push(msgRef,{
-    name:me,
-    text,
-    room:current,
-    time:Date.now()
+  const text = document.getElementById("note-input").value.trim();
+  if(!text && !window.pendingImageUrl) return;
+
+  push(notesRef,{
+    content: text,
+    imageUrl: window.pendingImageUrl || null,
+    authorId: currentUser.id,
+    authorName: currentUser.name,
+    color: currentUser.color,
+    room: currentRoom,
+    createdAt: Date.now()
   });
 
-  document.getElementById("text").value="";
+  document.getElementById("note-input").value="";
+  window.pendingImageUrl=null;
 };
 
-/* FILE */
-document.getElementById("file").onchange=async(e)=>{
-  let file=e.target.files[0];
-  let reader=new FileReader();
+/* REALTIME SYNC */
+onValue(notesRef,(snap)=>{
+  const data = snap.val();
+  if(!data) return;
 
-  reader.onload=()=>{
-    push(msgRef,{
-      name:me,
-      text:"",
-      img:reader.result,
-      room:current,
-      time:Date.now()
-    });
-  };
-
-  reader.readAsDataURL(file);
-};
-
-/* RECEIVE */
-onValue(msgRef,(snap)=>{
-  let data=snap.val();
-  messages=[];
-
-  for(let id in data){
-    messages.push(data[id]);
-
-    /* 🔔 notif */
-    if(Notification.permission==="granted"){
-      new Notification("New message",{body:data[id].text||"image"});
-    }
-  }
+  cloudNotes = Object.values(data);
 
   render();
+
+  cloudNotes.forEach(n=>{
+    if(n.authorId !== currentUser?.id){
+      notify(n);
+    }
+  });
 });
 
 /* RENDER */
 function render(){
-  let box=document.getElementById("messages");
-  box.innerHTML="";
+  const list = document.getElementById("notes-list");
 
-  messages.filter(m=>m.room===current)
-  .forEach(m=>{
+  const notes = cloudNotes
+    .filter(n=>n.room===currentRoom)
+    .sort((a,b)=>b.createdAt-a.createdAt);
 
-    let div=document.createElement("div");
-    div.className="msg "+(m.name===me?"me":"");
+  list.innerHTML = notes.map(n=>`
 
-    div.innerHTML=`
-      <b>${m.name}</b><br>
-      ${m.text||""}
-      ${m.img?`<img src="${m.img}">`:""}
-      <button onclick="speak('${(m.text||"")}')">🔊</button>
-    `;
+    <div class="note-card" style="border-left:3px solid ${n.color}">
+      <b style="color:${n.color}">${n.authorName}</b>
 
-    box.appendChild(div);
-  });
+      <div>${n.content || ""}</div>
+
+      ${n.imageUrl ? `<img src="${n.imageUrl}" style="max-width:100%;border-radius:10px">` : ""}
+
+      <button onclick="speak('${(n.content||"").replace(/'/g,"")}')">🔊</button>
+    </div>
+
+  `).join("");
 }
 
 /* VOICE */
-window.speak=(t)=>{
-  let u=new SpeechSynthesisUtterance(t);
-  u.lang="fr-FR";
+window.speak = function(text){
+  if(!text) return;
+
+  speechSynthesis.cancel();
+
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "fr-FR";
+  u.rate = 0.95;
+  u.pitch = 1.1;
+
   speechSynthesis.speak(u);
 };
 
-/* NOTIF */
-if(Notification.permission!=="granted"){
-  Notification.requestPermission();
+/* NOTIFICATIONS */
+function notify(note){
+
+  if(Notification.permission !== "granted") return;
+  if(!currentUser) return;
+  if(note.authorId === currentUser.id) return;
+
+  new Notification("📝 " + note.authorName,{
+    body: note.content || "image",
+  });
 }
-
-</script>
-
-</body>
-</html>
