@@ -66,6 +66,7 @@ body{
   padding:10px 14px;
   border-radius:18px;
   word-wrap:break-word;
+  position: relative;
 }
 
 .message.sent{
@@ -83,6 +84,20 @@ body{
   font-size:12px;
   margin-bottom:4px;
   opacity:0.9;
+}
+
+.speak-btn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  margin-left: 8px;
+  opacity: 0.7;
+}
+
+.speak-btn:hover {
+  opacity: 1;
+  transform: scale(1.2);
 }
 
 .roomBar{
@@ -259,7 +274,6 @@ async function startRecording() {
     recorder.ondataavailable = e => chunks.push(e.data);
     recorder.start();
   } catch(e) {
-    console.error(e);
     alert("Impossible d'accéder au micro");
     recording = false;
     holdBtn.classList.remove("active");
@@ -275,7 +289,6 @@ function stopRecording() {
   recorder.onstop = () => {
     const blob = new Blob(chunks, { type: "audio/webm" });
     const url = URL.createObjectURL(blob);
-
     push(rooms[currentRoom], {
       type: "voice",
       audioUrl: url,
@@ -283,20 +296,32 @@ function stopRecording() {
       color: currentUser.color,
       time: Date.now()
     });
-
     audioStream?.getTracks().forEach(track => track.stop());
   };
+};
+
+// ====================== LECTURE VOCALE ======================
+window.speak = (text) => {
+  if ('speechSynthesis' in window) {
+    speechSynthesis.cancel(); // Arrête tout ce qui parle déjà
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "fr-FR";
+    utterance.rate = 0.95;
+    utterance.pitch = 1.05;
+    speechSynthesis.speak(utterance);
+  } else {
+    alert("Ton navigateur ne supporte pas la lecture vocale");
+  }
 };
 
 // ====================== AFFICHAGE MESSAGES ======================
 function listenRoom() {
   const messagesDiv = document.getElementById("messages");
 
-  // Supprime l'ancien listener pour éviter les doublons
   if (messageListener) messageListener();
 
   messageListener = onValue(rooms[currentRoom], (snapshot) => {
-    messagesDiv.innerHTML = "";   // On vide d'abord
+    messagesDiv.innerHTML = "";
 
     const data = snapshot.val();
     if (!data) return;
@@ -308,7 +333,11 @@ function listenRoom() {
         div.className = `message ${msg.name === currentUser.name ? 'sent' : 'received'}`;
 
         if (msg.type === "text") {
-          div.innerHTML = `<div class="name" style="color:${msg.color}">${msg.name}</div>${msg.text}`;
+          div.innerHTML = `
+            <div class="name" style="color:${msg.color}">${msg.name}</div>
+            ${msg.text}
+            <button class="speak-btn" onclick="speak('${msg.text.replace(/'/g, "\\'").replace(/"/g, '\\"')}')">🔊</button>
+          `;
         } else if (msg.type === "voice") {
           div.innerHTML = `
             <div class="name" style="color:${msg.color}">${msg.name}</div>
