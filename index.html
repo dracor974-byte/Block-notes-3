@@ -3,9 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Omori Chat Online</title>
-
-<meta name="theme-color" content="#7a2cff">
+<title>Omori Chat Local</title>
 
 <style>
 body{
@@ -117,6 +115,7 @@ img{
 <!-- LOGIN -->
 <div id="login">
   <h2>Choisis ton identité</h2>
+
   <div class="card" onclick="login('Draco')">Draco</div>
   <div class="card" onclick="login('Emer')">Emer</div>
   <div class="card" onclick="login('Liam')">Liam</div>
@@ -145,22 +144,7 @@ img{
 </div>
 </div>
 
-<script type="module">
-
-/* ================= FIREBASE ================= */
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-
-const firebaseConfig = {
-  apiKey: "XXX",
-  authDomain: "XXX",
-  databaseURL: "XXX",
-  projectId: "XXX"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-const chatRef = ref(db,"chat");
+<script>
 
 /* ================= STATE ================= */
 let me = null;
@@ -168,18 +152,17 @@ let room = "serie";
 let msgs = [];
 
 /* ================= LOGIN ================= */
-window.login = function(name){
+function login(name){
 
   me = name;
 
   document.getElementById("login").style.display = "none";
   document.getElementById("app").style.display = "flex";
-
-  Notification.requestPermission();
-};
+}
+window.login = login;
 
 /* ================= ROOM ================= */
-window.switchRoom = function(r,el){
+function switchRoom(r,el){
 
   room = r;
 
@@ -189,15 +172,16 @@ window.switchRoom = function(r,el){
   el.classList.add("active");
 
   render();
-};
+}
+window.switchRoom = switchRoom;
 
 /* ================= SEND ================= */
-window.send = function(){
+function send(){
 
   let text = document.getElementById("text").value;
   if(!text && !window.pendingImg) return;
 
-  push(chatRef,{
+  msgs.push({
     name: me,
     text: text || "",
     img: window.pendingImg || null,
@@ -207,7 +191,10 @@ window.send = function(){
 
   document.getElementById("text").value = "";
   window.pendingImg = null;
-};
+
+  render();
+}
+window.send = send;
 
 /* ================= IMAGE ================= */
 document.getElementById("file").onchange = (e)=>{
@@ -215,25 +202,12 @@ document.getElementById("file").onchange = (e)=>{
   const file = e.target.files[0];
   const reader = new FileReader();
 
-  reader.onload = ()=> {
+  reader.onload = ()=>{
     window.pendingImg = reader.result;
   };
 
   reader.readAsDataURL(file);
 };
-
-/* ================= REALTIME ================= */
-onValue(chatRef,(snap)=>{
-
-  const data = snap.val();
-  msgs = [];
-
-  for(let id in data){
-    msgs.push(data[id]);
-  }
-
-  render();
-});
 
 /* ================= RENDER ================= */
 function render(){
@@ -260,7 +234,7 @@ function render(){
 }
 
 /* ================= VOICE ================= */
-window.speak = function(text){
+function speak(text){
   if(!text) return;
 
   speechSynthesis.cancel();
@@ -270,12 +244,8 @@ window.speak = function(text){
   u.rate = 0.95;
 
   speechSynthesis.speak(u);
-};
-
-/* ================= NOTIFS ================= */
-if(Notification.permission !== "granted"){
-  Notification.requestPermission();
 }
+window.speak = speak;
 
 </script>
 
