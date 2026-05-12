@@ -5,56 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Omori Chat Online</title>
 
+<link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#7a2cff">
 
 <style>
 body{
   margin:0;
   font-family:Arial;
-  background:linear-gradient(135deg,#1a0033,#3a005a,#5a0030);
   color:white;
-}
-
-/* ===== LOGIN ===== */
-#login{
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
   height:100vh;
-  background:linear-gradient(135deg,#0a0015,#2a0040);
+  background:linear-gradient(135deg,#1a0033,#3a005a,#5a0030);
 }
 
-#login h2{
-  font-size:32px;
-  margin-bottom:20px;
-  color:#caa6ff;
-  text-shadow:0 0 10px #7a2cff;
-}
-
-.card{
-  background:#1a0b2e;
-  padding:16px;
-  margin:8px;
-  width:240px;
-  text-align:center;
-  font-size:22px;
-  border-radius:12px;
-  cursor:pointer;
-  transition:0.2s;
-}
-
-.card:hover{
-  transform:scale(1.05);
-  background:#7a2cff;
-}
-
-/* ===== APP ===== */
-#app{
-  display:none;
-  flex-direction:row;
-  height:100vh;
-}
+#app{display:flex;height:100vh}
 
 #sidebar{
   width:200px;
@@ -63,16 +26,16 @@ body{
 }
 
 .channel{
-  padding:12px;
+  padding:10px;
   margin:6px;
   background:#1d0a2e;
   border-radius:10px;
   cursor:pointer;
 }
 
-.channel.active{
-  background:#7a2cff;
-}
+.channel.active{background:#7a2cff}
+
+#chat{flex:1;display:flex;flex-direction:column}
 
 #messages{
   flex:1;
@@ -88,13 +51,9 @@ body{
   background:#1a0b2e;
   border-radius:10px;
   max-width:70%;
-  box-shadow:0 0 10px rgba(122,44,255,0.25);
 }
 
-.me{
-  align-self:flex-end;
-  background:#7a2cff;
-}
+.me{align-self:flex-end;background:#7a2cff}
 
 #input{
   display:flex;
@@ -102,12 +61,27 @@ body{
   background:#12061f;
 }
 
-textarea{flex:1}
+textarea{
+  flex:1;
+}
+
 button{margin-left:5px}
 
-img{
-  max-width:200px;
-  border-radius:10px;
+img,video{max-width:200px;border-radius:10px}
+
+#login{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  height:100vh;
+}
+
+.card{
+  background:#1a0b2e;
+  padding:10px;
+  margin:5px;
+  cursor:pointer;
 }
 </style>
 </head>
@@ -116,15 +90,14 @@ img{
 
 <!-- LOGIN -->
 <div id="login">
-  <h2>Choisis ton identité</h2>
-
-  <div class="card" onclick="login('Draco')">Draco</div>
-  <div class="card" onclick="login('Emer')">Emer</div>
-  <div class="card" onclick="login('Liam')">Liam</div>
+  <h2>Choisis ton perso</h2>
+  <div class="card" onclick="setUser('Draco')">Draco</div>
+  <div class="card" onclick="setUser('Emer')">Emer</div>
+  <div class="card" onclick="setUser('Liam')">Liam</div>
 </div>
 
 <!-- APP -->
-<div id="app">
+<div id="app" style="display:none">
 
 <div id="sidebar">
   <div class="channel active" onclick="switchRoom('serie',this)">Série</div>
@@ -148,547 +121,131 @@ img{
 
 <script type="module">
 
-/* ================= FIREBASE ================= */
+/* 🔥 FIREBASE */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import {
+  getDatabase,
+  ref,
+  push,
+  onValue
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 const firebaseConfig = {
-  apiKey: "XXX",
-  authDomain: "XXX",
-  databaseURL: "XXX",
-  projectId: "XXX"
+  apiKey: "YOUR_KEY",
+  authDomain: "YOUR_DOMAIN",
+  databaseURL: "YOUR_DB",
+  projectId: "YOUR_ID"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
-const chatRef = ref(db,"chat");
+const msgRef = ref(db,"messages");
 
-/* ================= STATE ================= */
-let me = null;
-let room = "serie";
-let msgs = [];
+/* DATA */
+let me=null;
+let current="serie";
+let messages=[];
 
-/* ================= LOGIN ================= */
-window.login = function(name){
-
-  me = name;
-
-  document.getElementById("login").style.display = "none";
-  document.getElementById("app").style.display = "flex";
-
-  Notification.requestPermission();
+/* LOGIN */
+window.setUser=(name)=>{
+  me=name;
+  document.getElementById("login").style.display="none";
+  document.getElementById("app").style.display="flex";
 };
 
-/* ================= ROOM ================= */
-window.switchRoom = function(r,el){
-
-  room = r;
-
-  document.querySelectorAll(".channel")
-    .forEach(c => c.classList.remove("active"));
-
+/* ROOM */
+window.switchRoom=(r,el)=>{
+  current=r;
+  document.querySelectorAll(".channel").forEach(c=>c.classList.remove("active"));
   el.classList.add("active");
-
   render();
 };
 
-/* ================= SEND ================= */
-window.send = function(){
+/* SEND */
+window.send=()=>{
+  let text=document.getElementById("text").value;
+  if(!text)return;
 
-  let text = document.getElementById("text").value;
-  if(!text) return;
-
-  push(chatRef,{
-    name: me,
+  push(msgRef,{
+    name:me,
     text,
-    room,
-    time: Date.now()
+    room:current,
+    time:Date.now()
   });
 
-  document.getElementById("text").value = "";
+  document.getElementById("text").value="";
 };
 
-/* ================= FILE ================= */
-document.getElementById("file").onchange = (e)=>{
+/* FILE */
+document.getElementById("file").onchange=async(e)=>{
+  let file=e.target.files[0];
+  let reader=new FileReader();
 
-  let file = e.target.files[0];
-  let reader = new FileReader();
-
-  reader.onload = ()=>{
-
-    push(chatRef,{
-      name: me,
-      img: reader.result,
-      room,
-      time: Date.now()
+  reader.onload=()=>{
+    push(msgRef,{
+      name:me,
+      text:"",
+      img:reader.result,
+      room:current,
+      time:Date.now()
     });
-
   };
 
   reader.readAsDataURL(file);
 };
 
-/* ================= REALTIME ================= */
-onValue(chatRef,(snap)=>{
-
-  const data = snap.val();
-  msgs = [];
+/* RECEIVE */
+onValue(msgRef,(snap)=>{
+  let data=snap.val();
+  messages=[];
 
   for(let id in data){
-    msgs.push(data[id]);
+    messages.push(data[id]);
 
+    /* 🔔 notif */
     if(Notification.permission==="granted"){
-      new Notification("💬 "+data[id].name,{
-        body:data[id].text || "image"
-      });
+      new Notification("New message",{body:data[id].text||"image"});
     }
   }
 
   render();
 });
 
-/* ================= RENDER ================= */
+/* RENDER */
 function render(){
+  let box=document.getElementById("messages");
+  box.innerHTML="";
 
-  const box = document.getElementById("messages");
-  box.innerHTML = "";
+  messages.filter(m=>m.room===current)
+  .forEach(m=>{
 
-  msgs
-    .filter(m => m.room === room)
-    .forEach(m => {
+    let div=document.createElement("div");
+    div.className="msg "+(m.name===me?"me":"");
 
-      const div = document.createElement("div");
-      div.className = "msg " + (m.name === me ? "me" : "");
+    div.innerHTML=`
+      <b>${m.name}</b><br>
+      ${m.text||""}
+      ${m.img?`<img src="${m.img}">`:""}
+      <button onclick="speak('${(m.text||"")}')">🔊</button>
+    `;
 
-      div.innerHTML = `
-        <b>${m.name}</b><br>
-        ${m.text || ""}
-        ${m.img ? `<img src="${m.img}">` : ""}
-        <button onclick="speak('${m.text || ""}')">🔊</button>
-      `;
-
-      box.appendChild(div);
-    });
+    box.appendChild(div);
+  });
 }
 
-/* ================= VOICE ================= */
-window.speak = function(text){
-  if(!text) return;
-
-  speechSynthesis.cancel();
-
-  let u = new SpeechSynthesisUtterance(text);
-  u.lang = "fr-FR";
-  u.rate = 0.95;
-
+/* VOICE */
+window.speak=(t)=>{
+  let u=new SpeechSynthesisUtterance(t);
+  u.lang="fr-FR";
   speechSynthesis.speak(u);
 };
 
-/* ================= NOTIFS ================= */
-if(Notification.permission !== "granted"){
+/* NOTIF */
+if(Notification.permission!=="granted"){
   Notification.requestPermission();
 }
 
 </script>
-<script type="module">
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-
-/* FIREBASE */
-const firebaseConfig = {
-  apiKey: "XXX",
-  authDomain: "XXX",
-  databaseURL: "XXX",
-  projectId: "XXX"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-const chatRef = ref(db,"chat");
-
-/* STATE */
-let me = null;
-let room = "serie";
-let msgs = [];
-
-/* ================= 🔥 FIX LOGIN (IMPORTANT) ================= */
-window.login = (name) => {
-
-  console.log("LOGIN OK:", name);
-
-  me = name;
-
-  document.getElementById("login").style.display = "none";
-  document.getElementById("app").style.display = "flex";
-
-  Notification.requestPermission();
-};
-
-/* ROOMS */
-window.switchRoom = (r,el) => {
-
-  room = r;
-
-  document.querySelectorAll(".channel")
-    .forEach(c => c.classList.remove("active"));
-
-  el.classList.add("active");
-
-  render();
-};
-
-/* SEND */
-window.send = () => {
-
-  let text = document.getElementById("text").value;
-  if(!text) return;
-
-  push(chatRef,{
-    name: me,
-    text,
-    room,
-    time: Date.now()
-  });
-
-  document.getElementById("text").value = "";
-};
-
-/* FILE */
-document.getElementById("file").onchange = (e)=>{
-
-  let file = e.target.files[0];
-  let reader = new FileReader();
-
-  reader.onload = () => {
-
-    push(chatRef,{
-      name: me,
-      img: reader.result,
-      room,
-      time: Date.now()
-    });
-
-  };
-
-  reader.readAsDataURL(file);
-};
-
-/* REALTIME */
-onValue(chatRef,(snap)=>{
-
-  const data = snap.val();
-  msgs = [];
-
-  for(let id in data){
-    msgs.push(data[id]);
-  }
-
-  render();
-});
-
-/* RENDER */
-function render(){
-
-  const box = document.getElementById("messages");
-  box.innerHTML = "";
-
-  msgs
-    .filter(m => m.room === room)
-    .forEach(m => {
-
-      const div = document.createElement("div");
-      div.className = "msg " + (m.name === me ? "me" : "");
-
-      div.innerHTML = `
-        <b>${m.name}</b><br>
-        ${m.text || ""}
-        ${m.img ? `<img src="${m.img}">` : ""}
-        <button onclick="speak('${m.text || ""}')">🔊</button>
-      `;
-
-      box.appendChild(div);
-    });
-}
-
-/* VOICE */
-window.speak = (text) => {
-  if(!text) return;
-
-  speechSynthesis.cancel();
-
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = "fr-FR";
-
-  speechSynthesis.speak(u);
-};
-
-</script><script type="module">
-
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-
-/* FIREBASE */
-const firebaseConfig = {
-  apiKey: "XXX",
-  authDomain: "XXX",
-  databaseURL: "XXX",
-  projectId: "XXX"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-const chatRef = ref(db,"chat");
-
-/* STATE */
-let me = null;
-let room = "serie";
-let msgs = [];
-
-/* ================= 🔥 FIX LOGIN (IMPORTANT) ================= */
-window.login = (name) => {
-
-  console.log("LOGIN OK:", name);
-
-  me = name;
-
-  document.getElementById("login").style.display = "none";
-  document.getElementById("app").style.display = "flex";
-
-  Notification.requestPermission();
-};
-
-/* ROOMS */
-window.switchRoom = (r,el) => {
-
-  room = r;
-
-  document.querySelectorAll(".channel")
-    .forEach(c => c.classList.remove("active"));
-
-  el.classList.add("active");
-
-  render();
-};
-
-/* SEND */
-window.send = () => {
-
-  let text = document.getElementById("text").value;
-  if(!text) return;
-
-  push(chatRef,{
-    name: me,
-    text,
-    room,
-    time: Date.now()
-  });
-
-  document.getElementById("text").value = "";
-};
-
-/* FILE */
-document.getElementById("file").onchange = (e)=>{
-
-  let file = e.target.files[0];
-  let reader = new FileReader();
-
-  reader.onload = () => {
-
-    push(chatRef,{
-      name: me,
-      img: reader.result,
-      room,
-      time: Date.now()
-    });
-
-  };
-
-  reader.readAsDataURL(file);
-};
-
-/* REALTIME */
-onValue(chatRef,(snap)=>{
-
-  const data = snap.val();
-  msgs = [];
-
-  for(let id in data){
-    msgs.push(data[id]);
-  }
-
-  render();
-});
-
-/* RENDER */
-function render(){
-
-  const box = document.getElementById("messages");
-  box.innerHTML = "";
-
-  msgs
-    .filter(m => m.room === room)
-    .forEach(m => {
-
-      const div = document.createElement("div");
-      div.className = "msg " + (m.name === me ? "me" : "");
-
-      div.innerHTML = `
-        <b>${m.name}</b><br>
-        ${m.text || ""}
-        ${m.img ? `<img src="${m.img}">` : ""}
-        <button onclick="speak('${m.text || ""}')">🔊</button>
-      `;
-
-      box.appendChild(div);
-    });
-}
-
-/* VOICE */
-window.speak = (text) => {
-  if(!text) return;
-
-  speechSynthesis.cancel();
-
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = "fr-FR";
-
-  speechSynthesis.speak(u);
-};
-
-<<script type="module">
-
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-
-/* FIREBASE */
-const firebaseConfig = {
-  apiKey: "XXX",
-  authDomain: "XXX",
-  databaseURL: "XXX",
-  projectId: "XXX"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-const chatRef = ref(db,"chat");
-
-/* STATE */
-let me = null;
-let room = "serie";
-let msgs = [];
-
-/* ================= 🔥 FIX LOGIN (IMPORTANT) ================= */
-window.login = (name) => {
-
-  console.log("LOGIN OK:", name);
-
-  me = name;
-
-  document.getElementById("login").style.display = "none";
-  document.getElementById("app").style.display = "flex";
-
-  Notification.requestPermission();
-};
-
-/* ROOMS */
-window.switchRoom = (r,el) => {
-
-  room = r;
-
-  document.querySelectorAll(".channel")
-    .forEach(c => c.classList.remove("active"));
-
-  el.classList.add("active");
-
-  render();
-};
-
-/* SEND */
-window.send = () => {
-
-  let text = document.getElementById("text").value;
-  if(!text) return;
-
-  push(chatRef,{
-    name: me,
-    text,
-    room,
-    time: Date.now()
-  });
-
-  document.getElementById("text").value = "";
-};
-
-/* FILE */
-document.getElementById("file").onchange = (e)=>{
-
-  let file = e.target.files[0];
-  let reader = new FileReader();
-
-  reader.onload = () => {
-
-    push(chatRef,{
-      name: me,
-      img: reader.result,
-      room,
-      time: Date.now()
-    });
-
-  };
-
-  reader.readAsDataURL(file);
-};
-
-/* REALTIME */
-onValue(chatRef,(snap)=>{
-
-  const data = snap.val();
-  msgs = [];
-
-  for(let id in data){
-    msgs.push(data[id]);
-  }
-
-  render();
-});
-
-/* RENDER */
-function render(){
-
-  const box = document.getElementById("messages");
-  box.innerHTML = "";
-
-  msgs
-    .filter(m => m.room === room)
-    .forEach(m => {
-
-      const div = document.createElement("div");
-      div.className = "msg " + (m.name === me ? "me" : "");
-
-      div.innerHTML = `
-        <b>${m.name}</b><br>
-        ${m.text || ""}
-        ${m.img ? `<img src="${m.img}">` : ""}
-        <button onclick="speak('${m.text || ""}')">🔊</button>
-      `;
-
-      box.appendChild(div);
-    });
-}
-
-/* VOICE */
-window.speak = (text) => {
-  if(!text) return;
-
-  speechSynthesis.cancel();
-
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = "fr-FR";
-
-  speechSynthesis.speak(u);
-};
-
-</script>
 </body>
 </html>
