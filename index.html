@@ -94,7 +94,7 @@ const USERS = {
 
 let currentUser=null;
 
-/* 🔔 NOTIF PERMISSION */
+/* 🔔 NOTIFS */
 async function askNotifPermission(){
   if ("Notification" in window && Notification.permission === "default") {
     await Notification.requestPermission();
@@ -113,7 +113,7 @@ window.login=(id)=>{
   askNotifPermission();
 }
 
-/* SEND MESSAGE */
+/* SEND */
 window.send=()=>{
   const text=document.getElementById("text").value;
   if(!text||!currentUser)return;
@@ -129,13 +129,26 @@ window.send=()=>{
   document.getElementById("text").value="";
 }
 
-/* 🔊 VOIX */
+/* 🔊 VOIX AMÉLIORÉE */
 window.speak=(text,btn)=>{
+  if(!text) return;
+
   window.speechSynthesis.cancel();
 
   const u=new SpeechSynthesisUtterance(text);
+
   u.lang="fr-FR";
-  u.rate=1;
+  u.rate=0.92;   // plus naturel
+  u.pitch=1.05;  // plus humain
+  u.volume=1;
+
+  // 🎯 choisir voix FR si dispo
+  const voices = speechSynthesis.getVoices();
+  const frVoice =
+    voices.find(v => v.lang.includes("fr") && v.name.toLowerCase().includes("google")) ||
+    voices.find(v => v.lang.includes("fr"));
+
+  if(frVoice) u.voice = frVoice;
 
   btn.innerText="⏹";
 
@@ -146,7 +159,7 @@ window.speak=(text,btn)=>{
   speechSynthesis.speak(u);
 }
 
-/* 💬 LIVE + 🔔 NOTIFS */
+/* LIVE CHAT */
 onValue(notesRef,(snap)=>{
   const data=snap.val();
   const box=document.getElementById("notes");
@@ -156,10 +169,9 @@ onValue(notesRef,(snap)=>{
 
   Object.entries(data).reverse().forEach(([id,n])=>{
 
-    /* 🔔 NOTIFICATION */
-    if(currentUser && n.id !== currentUser.id && Notification.permission==="granted"){
+    if(currentUser && n.id!==currentUser.id && Notification.permission==="granted"){
       new Notification("💬 "+n.name,{
-        body:n.text || "Message envoyé",
+        body:n.text,
         icon:"https://emojiapi.dev/api/v1/speech_balloon/64.png"
       });
     }
@@ -178,6 +190,5 @@ onValue(notesRef,(snap)=>{
 });
 
 </script>
-
 </body>
 </html>
