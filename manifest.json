@@ -1,0 +1,13 @@
+{
+  "name": "Omori Chat Online",
+  "short_name": "Chat",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#1a0033",
+  "theme_color": "#7a2cff",
+  "icons": [{
+    "src": "icon.png",
+    "sizes": "192x192",
+    "type": "image/png"
+  }]
+}
