@@ -3,25 +3,19 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Chat Rooms Color</title>
+<title>Discord Mini</title>
 
 <style>
 body{
   margin:0;
   font-family:Arial;
+  background:#0f0f13;
   color:white;
-  min-height:100vh;
-
-  background: linear-gradient(-45deg,#0f0f0f,#1a1a2e,#16213e,#0f0f0f);
-  background-size:400% 400%;
-  animation: bg 12s ease infinite;
 }
 
-@keyframes bg{
-  0%{background-position:0% 50%}
-  50%{background-position:100% 50%}
-  100%{background-position:0% 50%}
-}
+/* PAGES */
+.page{display:none;height:100vh;}
+.active{display:block}
 
 /* LOGIN */
 #login{
@@ -29,107 +23,141 @@ body{
   flex-direction:column;
   align-items:center;
   justify-content:center;
-  height:100vh;
 }
 
 .card{
-  background:#141414;
+  background:#1c1c24;
   padding:12px;
   margin:8px;
-  border-radius:12px;
-  cursor:pointer;
   width:180px;
   text-align:center;
+  border-radius:10px;
+  cursor:pointer;
 }
 
-/* APP */
-#app{display:none;padding:12px}
-
-/* ROOMS */
-.rooms{
+/* ROOM SELECT */
+#rooms{
   display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
   gap:10px;
-  margin-bottom:10px;
 }
 
 .room{
-  padding:10px 14px;
-  border-radius:999px;
-  cursor:pointer;
-  border:none;
-  font-weight:bold;
-  opacity:0.6;
-  transition:0.2s;
-}
-
-.room.active{
-  opacity:1;
-  transform:scale(1.05);
-}
-
-.serie{background:#ff4d4d}
-.jeux{background:#4ECDC4;color:black}
-.futur{background:#FFD93D;color:black}
-
-/* INPUT */
-textarea{
-  width:100%;
-  padding:10px;
-  background:#141414;
-  color:white;
-  border:none;
+  padding:12px;
+  width:200px;
+  background:#222;
   border-radius:10px;
+  cursor:pointer;
+  text-align:center;
 }
 
 /* CHAT */
-#notes{
+#chat{
+  display:flex;
+  flex-direction:column;
+  height:100vh;
+}
+
+#topbar{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px;
+  background:#15151d;
+}
+
+.back{
+  cursor:pointer;
+  font-size:20px;
+}
+
+#messages{
+  flex:1;
+  overflow:auto;
+  padding:10px;
   display:flex;
   flex-direction:column;
   gap:10px;
-  margin-top:10px;
 }
 
-.note{
-  max-width:75%;
+.msg{
+  background:#1c1c24;
   padding:10px;
-  border-radius:14px;
+  border-radius:10px;
+  max-width:70%;
 }
 
-.me{align-self:flex-end}
-.other{align-self:flex-start}
+.me{
+  align-self:flex-end;
+  background:#4ECDC4;
+  color:black;
+}
 
-.name{
-  font-weight:bold;
-  margin-bottom:4px;
+.other{
+  align-self:flex-start;
+}
+
+/* INPUT */
+#input{
+  display:flex;
+  padding:10px;
+  background:#15151d;
+}
+
+textarea{
+  flex:1;
+  background:#222;
+  border:none;
+  color:white;
+  padding:8px;
+  border-radius:6px;
+}
+
+button{
+  margin-left:5px;
+  background:#4ECDC4;
+  border:none;
+  padding:8px;
+  border-radius:6px;
+  cursor:pointer;
 }
 </style>
 </head>
 
 <body>
 
-<!-- LOGIN -->
-<div id="login">
-  <h2>Choisis ton perso</h2>
-  <div class="card" onclick="login('draco')">🔥 Draco</div>
-  <div class="card" onclick="login('emer')">💎 Emer</div>
-  <div class="card" onclick="login('liam')">⚡ Liam</div>
+<!-- PAGE 1 LOGIN -->
+<div id="login" class="page active">
+  <h2>Qui es-tu ?</h2>
+  <div class="card" onclick="setUser('Draco','#ff4d6d')">🔥 Draco</div>
+  <div class="card" onclick="setUser('Emer','#4ECDC4')">💎 Emer</div>
+  <div class="card" onclick="setUser('Liam','#FFD93D')">⚡ Liam</div>
 </div>
 
-<!-- APP -->
-<div id="app">
-
-<h3 id="user"></h3>
-
-<div class="rooms">
-  <button class="room serie active" onclick="switchRoom('serie',this)">🎬 Série</button>
-  <button class="room jeux" onclick="switchRoom('jeux',this)">🎮 Jeux</button>
-  <button class="room futur" onclick="switchRoom('futur',this)">🚀 Futur</button>
+<!-- PAGE 2 ROOMS -->
+<div id="rooms" class="page">
+  <h2>Choisis une discussion</h2>
+  <div class="room" onclick="openRoom('serie')">🎬 Série</div>
+  <div class="room" onclick="openRoom('jeux')">🎮 Jeux</div>
+  <div class="room" onclick="openRoom('futur')">🚀 Futur</div>
 </div>
 
-<textarea id="text" placeholder="Écris un message..."></textarea>
-<button onclick="send()">Envoyer</button>
+<!-- PAGE 3 CHAT -->
+<div id="chat" class="page">
 
-<div id="notes"></div>
+<div id="topbar">
+  <div class="back" onclick="goRooms()">⬅</div>
+  <div id="title">Chat</div>
+</div>
+
+<div id="messages"></div>
+
+<div id="input">
+  <textarea id="text"></textarea>
+  <button onclick="send()">Envoyer</button>
+</div>
 
 </div>
 
@@ -150,42 +178,42 @@ const rooms={
   futur:ref(db,"futur")
 };
 
-const USERS={
-  draco:{name:"Draco",color:"#ff4d4d"},
-  emer:{name:"Emer",color:"#4ECDC4"},
-  liam:{name:"Liam",color:"#FFD93D"}
-};
-
 let me=null;
-let current="serie";
+let currentRoom=null;
 
-/* LOGIN */
-window.login=(id)=>{
-  me={id,...USERS[id]};
-  document.getElementById("login").style.display="none";
-  document.getElementById("app").style.display="block";
-  document.getElementById("user").innerHTML=me.name;
+/* USER */
+window.setUser=(name,color)=>{
+  me={name,color};
+  show("rooms");
+};
+
+/* ROOM */
+window.openRoom=(r)=>{
+  currentRoom=r;
+  document.getElementById("title").innerText=r;
+  show("chat");
   listen();
 };
 
-/* SWITCH ROOM */
-window.switchRoom=(r,btn)=>{
-  current=r;
-  document.querySelectorAll(".room").forEach(b=>b.classList.remove("active"));
-  btn.classList.add("active");
-  listen();
+window.goRooms=()=>{
+  show("rooms");
 };
+
+/* SHOW PAGE */
+function show(id){
+  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+}
 
 /* SEND */
 window.send=()=>{
   let text=document.getElementById("text").value;
   if(!text)return;
 
-  push(rooms[current],{
+  push(rooms[currentRoom],{
     text,
     name:me.name,
     color:me.color,
-    id:me.id,
     time:Date.now()
   });
 
@@ -194,32 +222,26 @@ window.send=()=>{
 
 /* CHAT */
 function listen(){
-  onValue(rooms[current],snap=>{
+  onValue(rooms[currentRoom],snap=>{
     let data=snap.val();
-    let box=document.getElementById("notes");
+    let box=document.getElementById("messages");
     box.innerHTML="";
 
     if(!data)return;
 
-    Object.values(data).reverse().forEach(n=>{
-
-      const isMe = me && n.id === me.id;
+    Object.values(data).forEach(m=>{
 
       let div=document.createElement("div");
 
-      div.className="note "+(isMe?"me":"other");
+      const isMe = m.name === me.name;
 
-      div.style.background=isMe
-        ?`linear-gradient(135deg,${n.color},#111)`
-        :`linear-gradient(135deg,#222,#111)`;
+      div.className="msg "+(isMe?"me":"other");
 
-      div.style.border=`1px solid ${n.color}55`;
+      div.style.border=`1px solid ${m.color}`;
 
       div.innerHTML=`
-        <div class="name" style="color:${n.color}">
-          ${n.name}
-        </div>
-        ${n.text}
+        <b style="color:${m.color}">${m.name}</b><br/>
+        ${m.text}
       `;
 
       box.appendChild(div);
