@@ -3,22 +3,98 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Chat Multi Monde</title>
+<title>Chat Worlds</title>
 
 <style>
-body{margin:0;font-family:Arial;background:#0A0A0A;color:white}
-#login{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh}
+body{
+  margin:0;
+  font-family:Arial;
+  background:#0A0A0A;
+  color:white;
+}
 
-.card{background:#141414;padding:12px;margin:8px;border-radius:10px;cursor:pointer;width:180px;text-align:center}
+/* LOGIN */
+#login{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  height:100vh;
+}
 
-#app{display:none;padding:15px}
+.card{
+  background:#141414;
+  padding:12px;
+  margin:8px;
+  border-radius:10px;
+  cursor:pointer;
+  width:180px;
+  text-align:center;
+}
 
-button{padding:8px;border:none;border-radius:8px;margin:5px;cursor:pointer}
-textarea{width:100%;padding:10px;background:#141414;color:white;border:none;border-radius:10px}
+/* APP */
+#app{display:none;padding:12px}
 
-.note{background:#141414;padding:10px;margin:10px 0;border-radius:10px}
-.voiceBtn{margin-left:8px}
-.roomBar{display:flex;gap:8px;margin-bottom:10px}
+/* ROOM BAR */
+.roomBar{
+  display:flex;
+  gap:10px;
+  overflow-x:auto;
+  padding:10px 0;
+  margin-bottom:10px;
+}
+
+.roomBtn{
+  padding:10px 14px;
+  border-radius:20px;
+  border:none;
+  cursor:pointer;
+  background:#1a1a1a;
+  color:white;
+  transition:0.2s;
+  white-space:nowrap;
+}
+
+.roomBtn.active{
+  background:#4ECDC4;
+  color:black;
+  transform:scale(1.05);
+}
+
+/* CHAT */
+textarea{
+  width:100%;
+  padding:10px;
+  background:#141414;
+  color:white;
+  border:none;
+  border-radius:10px;
+}
+
+button{
+  padding:10px;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+  margin-top:5px;
+}
+
+.note{
+  background:#141414;
+  padding:10px;
+  margin:10px 0;
+  border-radius:10px;
+}
+
+.voiceBtn{
+  margin-left:8px;
+  cursor:pointer;
+}
+
+audio{
+  width:100%;
+  margin-top:8px;
+}
 </style>
 </head>
 
@@ -27,6 +103,7 @@ textarea{width:100%;padding:10px;background:#141414;color:white;border:none;bord
 <!-- LOGIN -->
 <div id="login">
   <h2>Choisis ton perso</h2>
+
   <div class="card" onclick="login('user1')">🔥 Draco</div>
   <div class="card" onclick="login('user2')">💎 Emer</div>
   <div class="card" onclick="login('user3')">⚡ Liam</div>
@@ -37,17 +114,17 @@ textarea{width:100%;padding:10px;background:#141414;color:white;border:none;bord
 
 <h3 id="user"></h3>
 
-<!-- ROOMS -->
+<!-- ROOMS (MODERN UI) -->
 <div class="roomBar">
-  <button onclick="switchRoom('serie')">🎬 Série</button>
-  <button onclick="switchRoom('jeux')">🎮 Jeux</button>
-  <button onclick="switchRoom('futur')">🚀 Futur</button>
+  <button class="roomBtn active" onclick="switchRoom('serie',this)">🎬 Série</button>
+  <button class="roomBtn" onclick="switchRoom('jeux',this)">🎮 Jeux</button>
+  <button class="roomBtn" onclick="switchRoom('futur',this)">🚀 Futur</button>
 </div>
 
 <textarea id="text" placeholder="Écris un message..."></textarea>
 
 <button onclick="send()">Envoyer</button>
-<button onclick="startVoice()">🎤 Voice</button>
+<button onclick="startVoice()">🎤 Enregistrer vocal</button>
 
 <div id="notes"></div>
 
@@ -78,6 +155,8 @@ const USERS = {
 
 let currentUser=null;
 let currentRoom="serie";
+let recorder;
+let chunks=[];
 
 /* LOGIN */
 window.login=(id)=>{
@@ -92,9 +171,16 @@ window.login=(id)=>{
   listenRoom();
 };
 
-/* SWITCH ROOM */
-window.switchRoom=(room)=>{
+/* SWITCH ROOM (UI FIX) */
+window.switchRoom=(room,btn)=>{
   currentRoom=room;
+
+  document.querySelectorAll(".roomBtn").forEach(b=>{
+    b.classList.remove("active");
+  });
+
+  if(btn) btn.classList.add("active");
+
   listenRoom();
 };
 
@@ -114,7 +200,7 @@ window.send=()=>{
   document.getElementById("text").value="";
 };
 
-/* 🔊 VOIX TEXTE */
+/* 🔊 TEXT TO SPEECH */
 window.speak=(text,btn)=>{
   window.speechSynthesis.cancel();
 
@@ -129,10 +215,7 @@ window.speak=(text,btn)=>{
   speechSynthesis.speak(u);
 };
 
-/* 🎤 VOICE MESSAGE */
-let recorder;
-let chunks=[];
-
+/* 🎤 FIXED VOICE MESSAGE */
 window.startVoice=async()=>{
   const stream=await navigator.mediaDevices.getUserMedia({audio:true});
 
@@ -141,7 +224,9 @@ window.startVoice=async()=>{
 
   recorder.start();
 
-  recorder.ondataavailable=e=>chunks.push(e.data);
+  recorder.ondataavailable=e=>{
+    chunks.push(e.data);
+  };
 
   recorder.onstop=()=>{
     const blob=new Blob(chunks,{type:"audio/webm"});
@@ -160,10 +245,10 @@ window.startVoice=async()=>{
     };
   };
 
-  setTimeout(()=>recorder.stop(),5000);
+  setTimeout(()=>recorder.stop(),4000);
 };
 
-/* 🔥 LIVE CHAT */
+/* 💬 LIVE CHAT */
 function listenRoom(){
   onValue(rooms[currentRoom],snap=>{
     const data=snap.val();
@@ -180,14 +265,14 @@ function listenRoom(){
       div.innerHTML=`
         <b style="color:${n.color}">${n.name}</b><br/>
 
-        ${n.text?`
+        ${n.text ? `
           ${n.text}
           <button class="voiceBtn" onclick="speak('${n.text}',this)">🔊</button>
-        `:""}
+        ` : ""}
 
-        ${n.voice?`
+        ${n.voice ? `
           <audio controls src="${n.voice}"></audio>
-        `:""}
+        ` : ""}
       `;
 
       box.appendChild(div);
