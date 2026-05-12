@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Omori Chat Fix</title>
+<title>Omori Chat Final</title>
 
 <style>
 
@@ -45,11 +45,6 @@ body{
   border-radius:10px;
   cursor:pointer;
   background:#1b0f2e;
-  transition:0.2s;
-}
-
-.channel:hover{
-  background:#2d1350;
 }
 
 .channel.active{
@@ -121,7 +116,6 @@ textarea{
   color:white;
 }
 
-/* buttons */
 button{
   margin-left:6px;
   padding:10px;
@@ -216,17 +210,15 @@ window.setUser=(name)=>{
   render();
 };
 
-/* SWITCH CHANNEL FIX */
+/* SWITCH */
 window.switchRoom=(room,el)=>{
   current=room;
-
   document.querySelectorAll(".channel").forEach(c=>c.classList.remove("active"));
   el.classList.add("active");
-
   render();
 };
 
-/* FILE → BASE64 */
+/* BASE64 FILE */
 function toBase64(file){
   return new Promise(res=>{
     const r=new FileReader();
@@ -282,11 +274,39 @@ window.send=()=>{
   render();
 };
 
-/* REPLY FIX */
+/* REPLY */
 window.reply=(text)=>{
   window.replyTo=text;
   document.getElementById("text").placeholder="Replying to: "+text;
 };
+
+/* 🔊 VOICE SYSTEM (AJOUT FINAL) */
+function speak(text){
+  if(!text || !('speechSynthesis' in window)) return;
+
+  speechSynthesis.cancel();
+
+  const u=new SpeechSynthesisUtterance(text);
+
+  u.lang="fr-FR";
+  u.rate=0.88;
+  u.pitch=1.05;
+
+  const voices=speechSynthesis.getVoices();
+
+  const voice=
+    voices.find(v=>v.lang==="fr-FR" && v.name.toLowerCase().includes("google")) ||
+    voices.find(v=>v.lang==="fr-FR") ||
+    voices[0];
+
+  if(voice)u.voice=voice;
+
+  u.text=text.replace(/\./g,". ").replace(/,/g,", ");
+
+  speechSynthesis.speak(u);
+}
+
+speechSynthesis.onvoiceschanged=()=>{};
 
 /* RENDER */
 function render(){
@@ -295,7 +315,7 @@ function render(){
 
   dataStore[current].forEach(m=>{
 
-    let replyHTML = m.reply
+    let replyHTML=m.reply
       ? `<div class="reply">↳ ${m.reply}</div>`
       : "";
 
@@ -320,6 +340,7 @@ function render(){
       ${content}
       <br>
       <button onclick="reply('${m.text || "media"}')">↩ reply</button>
+      <button onclick="speak(\`${(m.text || "").replace(/`/g,"")}\`)">🔊</button>
     `;
 
     box.appendChild(div);
