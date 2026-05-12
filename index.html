@@ -1,45 +1,53 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8" />
+<meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Bloc-Notes Partagé</title>
-
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet"/>
+<title>Bloc Notes Live</title>
 
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:#0A0A0A;--surface:#141414;--border:#222;
-  --text:#F0EDE6;--muted:#555;
-  --u1:#FF6B6B;--u2:#4ECDC4;--u3:#FFD93D;
-}
-body{background:var(--bg);color:var(--text);font-family:'Space Mono'}
+body{margin:0;font-family:Arial;background:#0A0A0A;color:white}
 
-#login{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
-.login-title{font-family:'Syne';font-size:40px;font-weight:800}
-.user-card{background:var(--surface);border:1px solid #222;padding:20px;margin:10px;border-radius:12px;cursor:pointer}
-
-#app{display:none}
-
-header{
-  position:sticky;top:0;background:#0A0A0A;
-  padding:14px;border-bottom:1px solid var(--border);
-  display:flex;justify-content:space-between
+#login{
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  height:100vh
 }
 
-main{max-width:700px;margin:auto;padding:20px}
-
-.compose textarea{
-  width:100%;background:#141414;color:white;
-  border:1px solid #222;padding:10px;border-radius:10px
+.card{
+  background:#141414;
+  padding:15px;margin:10px;
+  border-radius:10px;
+  cursor:pointer;width:200px;
+  text-align:center
 }
 
-button{cursor:pointer}
+#app{display:none;padding:20px}
 
-.note{background:#141414;margin:10px 0;padding:10px;border-radius:10px}
-.note img{max-width:100%;border-radius:10px;margin-top:10px}
-.voice-btn{margin-left:10px}
+textarea{
+  width:100%;padding:10px;
+  margin:10px 0;
+  background:#141414;
+  color:white;
+  border:none;
+  border-radius:10px
+}
+
+button{
+  padding:10px;
+  border:none;
+  border-radius:8px;
+  cursor:pointer
+}
+
+.note{
+  background:#141414;
+  padding:10px;
+  margin:10px 0;
+  border-radius:10px
+}
+
+.voice{margin-left:10px;cursor:pointer}
 </style>
 </head>
 
@@ -47,31 +55,23 @@ button{cursor:pointer}
 
 <!-- LOGIN -->
 <div id="login">
-  <div class="login-title">📝 Bloc Notes</div>
+  <h2>Choisis ton perso</h2>
 
-  <div class="user-card" onclick="login('user1','User 1','#FF6B6B')">User 1</div>
-  <div class="user-card" onclick="login('user2','User 2','#4ECDC4')">User 2</div>
-  <div class="user-card" onclick="login('user3','User 3','#FFD93D')">User 3</div>
+  <div class="card" onclick="login('user1')">🔥 Draco</div>
+  <div class="card" onclick="login('user2')">💎 Emer</div>
+  <div class="card" onclick="login('user3')">⚡ Liam</div>
 </div>
 
 <!-- APP -->
 <div id="app">
 
-<header>
-  <div id="user"></div>
-  <button onclick="logout()">Changer</button>
-</header>
+<h3 id="user"></h3>
 
-<main>
-
-<div class="compose">
-  <textarea id="text" placeholder="Écris une note..."></textarea>
-  <button onclick="post()">Envoyer</button>
-</div>
+<textarea id="text" placeholder="Écris un message..."></textarea>
+<button onclick="send()">Envoyer</button>
 
 <div id="notes"></div>
 
-</main>
 </div>
 
 <script type="module">
@@ -86,126 +86,98 @@ const app = initializeApp({
 const db = getDatabase(app);
 const notesRef = ref(db,'notes');
 
-let currentUser = null;
-let speakingId = null;
-let audio = null;
+const USERS = {
+  user1:{name:"Draco",color:"#FF6B6B"},
+  user2:{name:"Emer",color:"#4ECDC4"},
+  user3:{name:"Liam",color:"#FFD93D"}
+};
 
-// LOGIN
-window.login=(id,name,color)=>{
-  currentUser={id,name,color};
+let currentUser=null;
+
+/* 🔔 NOTIF PERMISSION */
+async function askNotifPermission(){
+  if ("Notification" in window && Notification.permission === "default") {
+    await Notification.requestPermission();
+  }
+}
+
+/* LOGIN */
+window.login=(id)=>{
+  currentUser={id,...USERS[id]};
   document.getElementById("login").style.display="none";
   document.getElementById("app").style.display="block";
-  document.getElementById("user").innerText=name;
+
+  document.getElementById("user").innerHTML=
+    `<span style="color:${currentUser.color}">${currentUser.name}</span>`;
+
+  askNotifPermission();
 }
 
-window.logout=()=>{
-  location.reload();
-}
-
-// POST NOTE
-window.post=()=>{
+/* SEND MESSAGE */
+window.send=()=>{
   const text=document.getElementById("text").value;
-  if(!text)return;
+  if(!text||!currentUser)return;
 
   push(notesRef,{
     text,
-    author:currentUser.name,
-    id:currentUser.id,
+    name:currentUser.name,
     color:currentUser.color,
+    id:currentUser.id,
     time:Date.now()
   });
 
   document.getElementById("text").value="";
 }
 
-// NOTIFICATIONS
-function notify(note){
-  if(note.id===currentUser.id)return;
+/* 🔊 VOIX */
+window.speak=(text,btn)=>{
+  window.speechSynthesis.cancel();
 
-  new Notification("📝 "+note.author,{
-    body:note.text?.slice(0,100)||"Image",
-    icon:"https://emojiapi.dev/api/v1/memo/64.png",
-    vibrate:[200,100,200]
-  });
-}
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang="fr-FR";
+  u.rate=1;
 
-// VOIX IA ELEVENLABS
-window.speak=async function(id,text,btn){
+  btn.innerText="⏹";
 
-  if(speakingId===id){
-    audio.pause();
-    speakingId=null;
+  u.onend=()=>{
     btn.innerText="🔊";
-    return;
-  }
+  };
 
-  try{
-    speakingId=id;
-    btn.innerText="⏹";
-
-    const res=await fetch(
-      "https://api.elevenlabs.io/v1/text-to-speech/EXAVITQu4vr4xnSDxMaL",
-      {
-        method:"POST",
-        headers:{
-          "Content-Type":"application/json",
-          "xi-api-key":"TA_CLE_API"
-        },
-        body:JSON.stringify({
-          text,
-          model_id:"eleven_multilingual_v2"
-        })
-      }
-    );
-
-    const blob=await res.blob();
-    const url=URL.createObjectURL(blob);
-
-    audio=new Audio(url);
-    audio.play();
-
-    audio.onended=()=>{
-      speakingId=null;
-      btn.innerText="🔊";
-    }
-
-  }catch(e){
-    alert("Erreur voix IA");
-    speakingId=null;
-  }
+  speechSynthesis.speak(u);
 }
 
-// DISPLAY NOTES
+/* 💬 LIVE + 🔔 NOTIFS */
 onValue(notesRef,(snap)=>{
-
   const data=snap.val();
-  const div=document.getElementById("notes");
-  div.innerHTML="";
+  const box=document.getElementById("notes");
+  box.innerHTML="";
 
   if(!data)return;
 
   Object.entries(data).reverse().forEach(([id,n])=>{
 
-    notify(n);
+    /* 🔔 NOTIFICATION */
+    if(currentUser && n.id !== currentUser.id && Notification.permission==="granted"){
+      new Notification("💬 "+n.name,{
+        body:n.text || "Message envoyé",
+        icon:"https://emojiapi.dev/api/v1/speech_balloon/64.png"
+      });
+    }
 
-    const el=document.createElement("div");
-    el.className="note";
+    const div=document.createElement("div");
+    div.className="note";
 
-    el.innerHTML=`
-      <b style="color:${n.color}">${n.author}</b><br/>
+    div.innerHTML=`
+      <b style="color:${n.color}">${n.name}</b><br/>
       ${n.text}
-
-      <button class="voice-btn"
-        onclick="speak('${id}','${n.text}',this)">
-        🔊
-      </button>
+      <button class="voice" onclick="speak('${n.text}',this)">🔊</button>
     `;
 
-    div.appendChild(el);
+    box.appendChild(div);
   });
-
 });
 
 </script>
+
 </body>
 </html>
