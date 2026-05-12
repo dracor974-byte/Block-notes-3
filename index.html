@@ -3,51 +3,22 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Bloc Notes Live</title>
+<title>Chat Multi Monde</title>
 
 <style>
 body{margin:0;font-family:Arial;background:#0A0A0A;color:white}
+#login{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh}
 
-#login{
-  display:flex;flex-direction:column;
-  align-items:center;justify-content:center;
-  height:100vh
-}
+.card{background:#141414;padding:12px;margin:8px;border-radius:10px;cursor:pointer;width:180px;text-align:center}
 
-.card{
-  background:#141414;
-  padding:15px;margin:10px;
-  border-radius:10px;
-  cursor:pointer;width:200px;
-  text-align:center
-}
+#app{display:none;padding:15px}
 
-#app{display:none;padding:20px}
+button{padding:8px;border:none;border-radius:8px;margin:5px;cursor:pointer}
+textarea{width:100%;padding:10px;background:#141414;color:white;border:none;border-radius:10px}
 
-textarea{
-  width:100%;padding:10px;
-  margin:10px 0;
-  background:#141414;
-  color:white;
-  border:none;
-  border-radius:10px
-}
-
-button{
-  padding:10px;
-  border:none;
-  border-radius:8px;
-  cursor:pointer
-}
-
-.note{
-  background:#141414;
-  padding:10px;
-  margin:10px 0;
-  border-radius:10px
-}
-
-.voice{margin-left:10px;cursor:pointer}
+.note{background:#141414;padding:10px;margin:10px 0;border-radius:10px}
+.voiceBtn{margin-left:8px}
+.roomBar{display:flex;gap:8px;margin-bottom:10px}
 </style>
 </head>
 
@@ -56,7 +27,6 @@ button{
 <!-- LOGIN -->
 <div id="login">
   <h2>Choisis ton perso</h2>
-
   <div class="card" onclick="login('user1')">🔥 Draco</div>
   <div class="card" onclick="login('user2')">💎 Emer</div>
   <div class="card" onclick="login('user3')">⚡ Liam</div>
@@ -67,8 +37,17 @@ button{
 
 <h3 id="user"></h3>
 
+<!-- ROOMS -->
+<div class="roomBar">
+  <button onclick="switchRoom('serie')">🎬 Série</button>
+  <button onclick="switchRoom('jeux')">🎮 Jeux</button>
+  <button onclick="switchRoom('futur')">🚀 Futur</button>
+</div>
+
 <textarea id="text" placeholder="Écris un message..."></textarea>
+
 <button onclick="send()">Envoyer</button>
+<button onclick="startVoice()">🎤 Voice</button>
 
 <div id="notes"></div>
 
@@ -84,7 +63,12 @@ const app = initializeApp({
 });
 
 const db = getDatabase(app);
-const notesRef = ref(db,'notes');
+
+const rooms = {
+  serie: ref(db,"serie"),
+  jeux: ref(db,"jeux"),
+  futur: ref(db,"futur")
+};
 
 const USERS = {
   user1:{name:"Draco",color:"#FF6B6B"},
@@ -93,32 +77,33 @@ const USERS = {
 };
 
 let currentUser=null;
-
-/* 🔔 NOTIFS */
-async function askNotifPermission(){
-  if ("Notification" in window && Notification.permission === "default") {
-    await Notification.requestPermission();
-  }
-}
+let currentRoom="serie";
 
 /* LOGIN */
 window.login=(id)=>{
   currentUser={id,...USERS[id]};
+
   document.getElementById("login").style.display="none";
   document.getElementById("app").style.display="block";
 
   document.getElementById("user").innerHTML=
     `<span style="color:${currentUser.color}">${currentUser.name}</span>`;
 
-  askNotifPermission();
-}
+  listenRoom();
+};
 
-/* SEND */
+/* SWITCH ROOM */
+window.switchRoom=(room)=>{
+  currentRoom=room;
+  listenRoom();
+};
+
+/* SEND TEXT */
 window.send=()=>{
   const text=document.getElementById("text").value;
   if(!text||!currentUser)return;
 
-  push(notesRef,{
+  push(rooms[currentRoom],{
     text,
     name:currentUser.name,
     color:currentUser.color,
@@ -127,67 +112,88 @@ window.send=()=>{
   });
 
   document.getElementById("text").value="";
-}
+};
 
-/* 🔊 VOIX AMÉLIORÉE */
+/* 🔊 VOIX TEXTE */
 window.speak=(text,btn)=>{
-  if(!text) return;
-
   window.speechSynthesis.cancel();
 
   const u=new SpeechSynthesisUtterance(text);
-
   u.lang="fr-FR";
-  u.rate=0.92;   // plus naturel
-  u.pitch=1.05;  // plus humain
-  u.volume=1;
-
-  // 🎯 choisir voix FR si dispo
-  const voices = speechSynthesis.getVoices();
-  const frVoice =
-    voices.find(v => v.lang.includes("fr") && v.name.toLowerCase().includes("google")) ||
-    voices.find(v => v.lang.includes("fr"));
-
-  if(frVoice) u.voice = frVoice;
+  u.rate=0.92;
 
   btn.innerText="⏹";
 
-  u.onend=()=>{
-    btn.innerText="🔊";
-  };
+  u.onend=()=>btn.innerText="🔊";
 
   speechSynthesis.speak(u);
-}
+};
 
-/* LIVE CHAT */
-onValue(notesRef,(snap)=>{
-  const data=snap.val();
-  const box=document.getElementById("notes");
-  box.innerHTML="";
+/* 🎤 VOICE MESSAGE */
+let recorder;
+let chunks=[];
 
-  if(!data)return;
+window.startVoice=async()=>{
+  const stream=await navigator.mediaDevices.getUserMedia({audio:true});
 
-  Object.entries(data).reverse().forEach(([id,n])=>{
+  recorder=new MediaRecorder(stream);
+  chunks=[];
 
-    if(currentUser && n.id!==currentUser.id && Notification.permission==="granted"){
-      new Notification("💬 "+n.name,{
-        body:n.text,
-        icon:"https://emojiapi.dev/api/v1/speech_balloon/64.png"
+  recorder.start();
+
+  recorder.ondataavailable=e=>chunks.push(e.data);
+
+  recorder.onstop=()=>{
+    const blob=new Blob(chunks,{type:"audio/webm"});
+    const reader=new FileReader();
+
+    reader.readAsDataURL(blob);
+
+    reader.onloadend=()=>{
+      push(rooms[currentRoom],{
+        voice:reader.result,
+        name:currentUser.name,
+        color:currentUser.color,
+        id:currentUser.id,
+        time:Date.now()
       });
-    }
+    };
+  };
 
-    const div=document.createElement("div");
-    div.className="note";
+  setTimeout(()=>recorder.stop(),5000);
+};
 
-    div.innerHTML=`
-      <b style="color:${n.color}">${n.name}</b><br/>
-      ${n.text}
-      <button class="voice" onclick="speak('${n.text}',this)">🔊</button>
-    `;
+/* 🔥 LIVE CHAT */
+function listenRoom(){
+  onValue(rooms[currentRoom],snap=>{
+    const data=snap.val();
+    const box=document.getElementById("notes");
+    box.innerHTML="";
 
-    box.appendChild(div);
+    if(!data)return;
+
+    Object.entries(data).reverse().forEach(([id,n])=>{
+
+      const div=document.createElement("div");
+      div.className="note";
+
+      div.innerHTML=`
+        <b style="color:${n.color}">${n.name}</b><br/>
+
+        ${n.text?`
+          ${n.text}
+          <button class="voiceBtn" onclick="speak('${n.text}',this)">🔊</button>
+        `:""}
+
+        ${n.voice?`
+          <audio controls src="${n.voice}"></audio>
+        `:""}
+      `;
+
+      box.appendChild(div);
+    });
   });
-});
+}
 
 </script>
 </body>
