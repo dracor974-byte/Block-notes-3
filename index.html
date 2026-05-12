@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Omori Chat App</title>
+<title>Omori Chat Fix</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#6c4cff">
 
 <style>
 
-/* 🌌 BACKGROUND VIDEO */
+/* BACKGROUND FIX (video + fallback) */
 #bgvideo{
   position:fixed;
   top:0;
@@ -18,17 +18,27 @@
   width:100%;
   height:100%;
   object-fit:cover;
-  z-index:-1;
-  filter:brightness(0.35) saturate(1.3) blur(1px);
+  z-index:-2;
+  filter:brightness(0.35) saturate(1.3);
 }
 
+#bgfallback{
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  z-index:-3;
+  background:radial-gradient(circle,#1a1333,#0b0b14);
+}
+
+/* APP */
 body{
   margin:0;
   font-family:Arial;
   color:#f3f0ff;
 }
 
-/* APP */
 #app{
   display:flex;
   height:100vh;
@@ -46,10 +56,7 @@ body{
   border-right:1px solid #2a1f4a;
 }
 
-.title{
-  color:#b69cff;
-  font-weight:bold;
-}
+.title{color:#b69cff;font-weight:bold}
 
 /* CHANNELS */
 .channel{
@@ -57,27 +64,16 @@ body{
   border-radius:10px;
   cursor:pointer;
   background:#1b1630;
-  transition:0.2s;
 }
 
-.channel:hover{
-  background:#2a1f4a;
-}
-
-.channel.active{
-  background:#6c4cff;
-}
+.channel.active{background:#6c4cff}
 
 /* CHAT */
-#chat{
-  flex:1;
-  display:flex;
-  flex-direction:column;
-}
+#chat{flex:1;display:flex;flex-direction:column}
 
 #top{
   height:50px;
-  background:rgba(26,19,51,0.9);
+  background:#1a1333;
   display:flex;
   align-items:center;
   padding:0 15px;
@@ -107,21 +103,20 @@ body{
   background:linear-gradient(135deg,#6c4cff,#9b7bff);
 }
 
-.other{
-  align-self:flex-start;
-}
-
-.name{
-  font-size:12px;
-  opacity:0.8;
-  margin-bottom:4px;
+/* REPLY STYLE */
+.reply{
+  font-size:11px;
+  opacity:0.7;
+  border-left:2px solid #6c4cff;
+  padding-left:6px;
+  margin-bottom:5px;
 }
 
 /* INPUT */
 #input{
   display:flex;
   padding:10px;
-  background:rgba(26,19,51,0.9);
+  background:#1a1333;
   border-top:1px solid #2a1f4a;
 }
 
@@ -134,16 +129,6 @@ textarea{
   color:white;
 }
 
-button{
-  margin-left:8px;
-  background:#6c4cff;
-  border:none;
-  padding:10px;
-  border-radius:10px;
-  cursor:pointer;
-  color:white;
-}
-
 /* LOGIN */
 #login{
   display:flex;
@@ -151,7 +136,7 @@ button{
   align-items:center;
   justify-content:center;
   height:100vh;
-  background:rgba(0,0,0,0.6);
+  background:radial-gradient(circle,#1a1333,#0b0b14);
 }
 
 .card{
@@ -164,13 +149,26 @@ button{
   cursor:pointer;
 }
 
+/* buttons */
+button{
+  margin-left:6px;
+  background:#6c4cff;
+  border:none;
+  padding:10px;
+  border-radius:10px;
+  color:white;
+  cursor:pointer;
+}
+
 </style>
 </head>
 
 <body>
 
-<!-- 🌌 VIDEO BACKGROUND -->
-<video autoplay muted loop id="bgvideo">
+<!-- BACKGROUND FIX -->
+<div id="bgfallback"></div>
+
+<video autoplay muted loop playsinline id="bgvideo">
   <source src="https://cdn.pixabay.com/video/2022/07/02/12598-720p.mp4" type="video/mp4">
 </video>
 
@@ -205,7 +203,6 @@ button{
 
   <button onclick="document.getElementById('img').click()">📷</button>
   <button onclick="document.getElementById('vid').click()">🎥</button>
-
   <button onclick="send()">Send</button>
 </div>
 
@@ -232,48 +229,15 @@ const rooms={
 let me=null;
 let current="serie";
 
-/* PWA */
-if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("sw.js");
-}
-
 /* LOGIN */
 window.setUser=(name,color)=>{
   me={name,color};
-
   document.getElementById("login").style.display="none";
   document.getElementById("app").style.display="flex";
-
-  askNotif();
   listen();
 };
 
-/* NOTIFS */
-function askNotif(){
-  if("Notification" in window && Notification.permission!=="granted"){
-    Notification.requestPermission();
-  }
-}
-
-function notify(name,text){
-  const n=document.createElement("div");
-  n.style.position="fixed";
-  n.style.top="10px";
-  n.style.right="10px";
-  n.style.background="#1a1333";
-  n.style.padding="10px";
-  n.style.border="1px solid #6c4cff";
-  n.style.borderRadius="10px";
-  n.innerHTML=`<b>${name}</b><br>${text}`;
-  document.body.appendChild(n);
-  setTimeout(()=>n.remove(),4000);
-
-  if(Notification.permission==="granted"){
-    new Notification(name,{body:text});
-  }
-}
-
-/* ROOM */
+/* SWITCH ROOM */
 window.switchRoom=(r,el)=>{
   current=r;
   document.querySelectorAll(".channel").forEach(c=>c.classList.remove("active"));
@@ -281,45 +245,36 @@ window.switchRoom=(r,el)=>{
   listen();
 };
 
-/* UPLOAD (Cloudinary requis) */
-const CLOUD="TON_CLOUD";
-const PRESET="unsigned";
-
-async function upload(file){
-  let form=new FormData();
-  form.append("file",file);
-  form.append("upload_preset",PRESET);
-
-  let res=await fetch(`https://api.cloudinary.com/v1_1/${CLOUD}/upload`,{
-    method:"POST",
-    body:form
+/* UPLOAD FIX (Firebase base64 simple fallback) */
+function toBase64(file){
+  return new Promise(res=>{
+    const r=new FileReader();
+    r.onload=()=>res(r.result);
+    r.readAsDataURL(file);
   });
-
-  let data=await res.json();
-  return data.secure_url;
 }
 
 /* MEDIA */
 document.getElementById("img").onchange=async(e)=>{
-  let url=await upload(e.target.files[0]);
+  let url=await toBase64(e.target.files[0]);
 
   push(rooms[current],{
     type:"img",
     url,
     name:me.name,
-    color:me.color,
+    reply:null,
     time:Date.now()
   });
 };
 
 document.getElementById("vid").onchange=async(e)=>{
-  let url=await upload(e.target.files[0]);
+  let url=await toBase64(e.target.files[0]);
 
   push(rooms[current],{
     type:"video",
     url,
     name:me.name,
-    color:me.color,
+    reply:null,
     time:Date.now()
   });
 };
@@ -327,33 +282,21 @@ document.getElementById("vid").onchange=async(e)=>{
 /* SEND TEXT */
 window.send=()=>{
   let text=document.getElementById("text").value;
-  if(!text || !me)return;
+  if(!text)return;
 
   push(rooms[current],{
     type:"text",
     text,
     name:me.name,
-    color:me.color,
+    reply:window.replyTo || null,
     time:Date.now()
   });
 
+  window.replyTo=null;
   document.getElementById("text").value="";
 };
 
-/* VOICE */
-window.speak=(text,btn)=>{
-  window.speechSynthesis.cancel();
-
-  let u=new SpeechSynthesisUtterance(text);
-  u.lang="fr-FR";
-
-  btn.innerText="⏹";
-  u.onend=()=>btn.innerText="🔊";
-
-  speechSynthesis.speak(u);
-};
-
-/* CHAT */
+/* LISTEN */
 function listen(){
   onValue(rooms[current],snap=>{
     let data=snap.val();
@@ -362,11 +305,15 @@ function listen(){
 
     if(!data)return;
 
-    Object.values(data).forEach(m=>{
+    let arr=Object.values(data);
 
-      const isMe = me && m.name===me.name;
+    arr.forEach((m,i)=>{
 
-      if(!isMe) notify(m.name,m.text || "media");
+      let isMe = me && m.name===me.name;
+
+      let replyHTML = m.reply
+        ? `<div class="reply">↳ ${m.reply}</div>`
+        : "";
 
       let content="";
 
@@ -384,15 +331,23 @@ function listen(){
       div.className="msg "+(isMe?"me":"other");
 
       div.innerHTML=`
-        <div class="name">${m.name}</div>
+        ${replyHTML}
+        <b>${m.name}</b><br/>
         ${content}
-        ${m.text ? `<button onclick="speak('${m.text}',this)">🔊</button>` : ""}
+        <br>
+        <button onclick="reply('${m.text || "media"}')">↩ reply</button>
       `;
 
       box.appendChild(div);
     });
   });
 }
+
+/* REPLY */
+window.reply=(text)=>{
+  window.replyTo=text;
+  document.getElementById("text").placeholder="Replying to: "+text;
+};
 
 </script>
 
