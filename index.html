@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Chat Color Live</title>
+<title>Chat Rooms Color</title>
 
 <style>
 body{
@@ -45,6 +45,32 @@ body{
 /* APP */
 #app{display:none;padding:12px}
 
+/* ROOMS */
+.rooms{
+  display:flex;
+  gap:10px;
+  margin-bottom:10px;
+}
+
+.room{
+  padding:10px 14px;
+  border-radius:999px;
+  cursor:pointer;
+  border:none;
+  font-weight:bold;
+  opacity:0.6;
+  transition:0.2s;
+}
+
+.room.active{
+  opacity:1;
+  transform:scale(1.05);
+}
+
+.serie{background:#ff4d4d}
+.jeux{background:#4ECDC4;color:black}
+.futur{background:#FFD93D;color:black}
+
 /* INPUT */
 textarea{
   width:100%;
@@ -60,51 +86,21 @@ textarea{
   display:flex;
   flex-direction:column;
   gap:10px;
-  margin-top:12px;
+  margin-top:10px;
 }
 
-/* MESSAGE BASE */
 .note{
   max-width:75%;
   padding:10px;
   border-radius:14px;
-  animation:pop 0.2s ease;
-  word-wrap:break-word;
 }
 
-@keyframes pop{
-  from{transform:scale(0.9);opacity:0}
-  to{transform:scale(1);opacity:1}
-}
+.me{align-self:flex-end}
+.other{align-self:flex-start}
 
-/* TOI */
-.me{
-  align-self:flex-end;
-  text-align:right;
-  border-bottom-right-radius:4px;
-}
-
-/* AUTRES */
-.other{
-  align-self:flex-start;
-  text-align:left;
-  border-bottom-left-radius:4px;
-}
-
-/* NOM */
 .name{
   font-weight:bold;
   margin-bottom:4px;
-  text-shadow:0 0 8px currentColor;
-}
-
-/* VOICE BUTTON */
-button{
-  margin-left:6px;
-  cursor:pointer;
-  background:transparent;
-  border:none;
-  color:white;
 }
 </style>
 </head>
@@ -124,6 +120,12 @@ button{
 
 <h3 id="user"></h3>
 
+<div class="rooms">
+  <button class="room serie active" onclick="switchRoom('serie',this)">🎬 Série</button>
+  <button class="room jeux" onclick="switchRoom('jeux',this)">🎮 Jeux</button>
+  <button class="room futur" onclick="switchRoom('futur',this)">🚀 Futur</button>
+</div>
+
 <textarea id="text" placeholder="Écris un message..."></textarea>
 <button onclick="send()">Envoyer</button>
 
@@ -141,7 +143,12 @@ const app = initializeApp({
 });
 
 const db = getDatabase(app);
-const notesRef = ref(db,"notes");
+
+const rooms={
+  serie:ref(db,"serie"),
+  jeux:ref(db,"jeux"),
+  futur:ref(db,"futur")
+};
 
 const USERS={
   draco:{name:"Draco",color:"#ff4d4d"},
@@ -150,16 +157,23 @@ const USERS={
 };
 
 let me=null;
+let current="serie";
 
 /* LOGIN */
 window.login=(id)=>{
   me={id,...USERS[id]};
-
   document.getElementById("login").style.display="none";
   document.getElementById("app").style.display="block";
+  document.getElementById("user").innerHTML=me.name;
+  listen();
+};
 
-  document.getElementById("user").innerHTML=
-    `<span style="color:${me.color}">${me.name}</span>`;
+/* SWITCH ROOM */
+window.switchRoom=(r,btn)=>{
+  current=r;
+  document.querySelectorAll(".room").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  listen();
 };
 
 /* SEND */
@@ -167,7 +181,7 @@ window.send=()=>{
   let text=document.getElementById("text").value;
   if(!text)return;
 
-  push(notesRef,{
+  push(rooms[current],{
     text,
     name:me.name,
     color:me.color,
@@ -178,60 +192,42 @@ window.send=()=>{
   document.getElementById("text").value="";
 };
 
-/* 🔊 VOIX */
-window.speak=(text,btn)=>{
-  window.speechSynthesis.cancel();
+/* CHAT */
+function listen(){
+  onValue(rooms[current],snap=>{
+    let data=snap.val();
+    let box=document.getElementById("notes");
+    box.innerHTML="";
 
-  const u=new SpeechSynthesisUtterance(text);
-  u.lang="fr-FR";
-  u.rate=0.95;
-  u.pitch=1.05;
+    if(!data)return;
 
-  btn.innerText="⏹";
+    Object.values(data).reverse().forEach(n=>{
 
-  u.onend=()=>btn.innerText="🔊";
+      const isMe = me && n.id === me.id;
 
-  speechSynthesis.speak(u);
-};
+      let div=document.createElement("div");
 
-/* 💬 CHAT LIVE */
-onValue(notesRef,snap=>{
-  let data=snap.val();
-  let box=document.getElementById("notes");
-  box.innerHTML="";
+      div.className="note "+(isMe?"me":"other");
 
-  if(!data)return;
+      div.style.background=isMe
+        ?`linear-gradient(135deg,${n.color},#111)`
+        :`linear-gradient(135deg,#222,#111)`;
 
-  Object.values(data).reverse().forEach(n=>{
+      div.style.border=`1px solid ${n.color}55`;
 
-    const isMe = me && n.id === me.id;
+      div.innerHTML=`
+        <div class="name" style="color:${n.color}">
+          ${n.name}
+        </div>
+        ${n.text}
+      `;
 
-    let div=document.createElement("div");
-
-    div.className="note "+(isMe?"me":"other");
-
-    div.style.background=isMe
-      ?`linear-gradient(135deg,${n.color},#111)`
-      :`linear-gradient(135deg,#222,#111)`;
-
-    div.style.border=`1px solid ${n.color}55`;
-
-    div.innerHTML=`
-      <div class="name" style="color:${n.color}">
-        ${n.name}
-      </div>
-
-      <div>
-        ${n.text || ""}
-        ${n.text ? `<button onclick="speak('${n.text}',this)">🔊</button>` : ""}
-      </div>
-    `;
-
-    box.appendChild(div);
+      box.appendChild(div);
+    });
   });
-});
+}
 
 </script>
 
 </body>
-</html>p
+</html>
