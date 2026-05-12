@@ -6,6 +6,7 @@
 <title>Chat Worlds</title>
 
 <style>
+/* Même style que précédemment (je garde le fond Omori) */
 body{
   margin:0;
   font-family: 'Segoe UI', Arial, sans-serif;
@@ -35,10 +36,8 @@ body{
   font-size:18px;
   transition:0.3s;
 }
+.card:hover{ transform:scale(1.08); }
 
-.card:hover{ transform:scale(1.08); background:rgba(50,40,80,0.95); }
-
-/* APP */
 #app{
   display:none;
   height:100vh;
@@ -66,7 +65,6 @@ body{
   padding:10px 14px;
   border-radius:18px;
   word-wrap:break-word;
-  position: relative;
 }
 
 .message.sent{
@@ -94,11 +92,7 @@ body{
   margin-left: 8px;
   opacity: 0.7;
 }
-
-.speak-btn:hover {
-  opacity: 1;
-  transform: scale(1.2);
-}
+.speak-btn:hover { opacity: 1; transform: scale(1.3); }
 
 .roomBar{
   display:flex;
@@ -117,7 +111,6 @@ body{
   font-weight:bold;
   white-space:nowrap;
 }
-
 .roomBtn.active{transform:scale(1.08);}
 
 .serie{background:#FF6B6B;}
@@ -150,12 +143,10 @@ textarea{
   border-radius:50px;
   cursor:pointer;
 }
-
 #voiceHold.active{
   background:#FF6B6B;
   animation: pulse 1.2s infinite;
 }
-
 @keyframes pulse { 0%{transform:scale(1)} 50%{transform:scale(1.12)} }
 </style>
 </head>
@@ -214,7 +205,16 @@ let currentUser = null;
 let currentRoom = "serie";
 let recorder, audioStream, chunks = [];
 let recording = false;
-let messageListener = null;
+let unsubscribe = null;
+
+// Demande les notifications au login
+async function requestNotifications() {
+  if ("Notification" in window) {
+    if (Notification.permission === "default") {
+      await Notification.requestPermission();
+    }
+  }
+}
 
 // ====================== LOGIN ======================
 document.querySelectorAll('#login .card').forEach(card => {
@@ -225,8 +225,9 @@ window.login = (id) => {
   currentUser = { id, ...USERS[id] };
   document.getElementById("login").style.display = "none";
   document.getElementById("app").style.display = "flex";
-
   document.getElementById("user").innerHTML = `<h3 style="color:${currentUser.color};margin:0;">${currentUser.name}</h3>`;
+  
+  requestNotifications();
   listenRoom();
 };
 
@@ -238,14 +239,14 @@ window.switchRoom = (room, btn) => {
   listenRoom();
 };
 
-// ====================== ENVOI TEXTE ======================
+// ====================== ENVOI ======================
 window.send = () => {
   const text = document.getElementById("text").value.trim();
   if(!text || !currentUser) return;
 
   push(rooms[currentRoom], {
     type: "text",
-    text: text,
+    text,
     name: currentUser.name,
     color: currentUser.color,
     time: Date.now()
@@ -256,78 +257,67 @@ window.send = () => {
 
 // ====================== VOCAL ======================
 const holdBtn = document.getElementById("voiceHold");
-
 holdBtn.addEventListener("mousedown", startRecording);
 holdBtn.addEventListener("touchstart", startRecording);
 holdBtn.addEventListener("mouseup", stopRecording);
 holdBtn.addEventListener("mouseleave", stopRecording);
 holdBtn.addEventListener("touchend", stopRecording);
 
-async function startRecording() {
+async function startRecording() { /* même code */ 
   if (recording || !currentUser) return;
   try {
-    recording = true;
-    holdBtn.classList.add("active");
+    recording = true; holdBtn.classList.add("active");
     audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    recorder = new MediaRecorder(audioStream);
-    chunks = [];
+    recorder = new MediaRecorder(audioStream); chunks = [];
     recorder.ondataavailable = e => chunks.push(e.data);
     recorder.start();
-  } catch(e) {
-    alert("Impossible d'accéder au micro");
-    recording = false;
-    holdBtn.classList.remove("active");
-  }
+  } catch(e) { alert("Impossible d'accéder au micro"); recording=false; holdBtn.classList.remove("active"); }
 }
 
 function stopRecording() {
   if (!recording || !recorder) return;
-  recording = false;
-  holdBtn.classList.remove("active");
+  recording = false; holdBtn.classList.remove("active");
   recorder.stop();
-
   recorder.onstop = () => {
     const blob = new Blob(chunks, { type: "audio/webm" });
     const url = URL.createObjectURL(blob);
-    push(rooms[currentRoom], {
-      type: "voice",
-      audioUrl: url,
-      name: currentUser.name,
-      color: currentUser.color,
-      time: Date.now()
-    });
-    audioStream?.getTracks().forEach(track => track.stop());
+    push(rooms[currentRoom], { type: "voice", audioUrl: url, name: currentUser.name, color: currentUser.color, time: Date.now() });
+    audioStream?.getTracks().forEach(t => t.stop());
   };
 };
 
-// ====================== LECTURE VOCALE ======================
+// ====================== VOIX IA ======================
 window.speak = (text) => {
-  if ('speechSynthesis' in window) {
-    speechSynthesis.cancel(); // Arrête tout ce qui parle déjà
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "fr-FR";
-    utterance.rate = 0.95;
-    utterance.pitch = 1.05;
-    speechSynthesis.speak(utterance);
-  } else {
-    alert("Ton navigateur ne supporte pas la lecture vocale");
-  }
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "fr-FR"; u.rate = 0.92; u.pitch = 1.05;
+  speechSynthesis.speak(u);
 };
+
+// ====================== NOTIFICATIONS ======================
+function showNotification(msg) {
+  if (Notification.permission === "granted" && document.visibilityState !== "visible") {
+    const notif = new Notification(`${msg.name} (${currentRoom})`, {
+      body: msg.type === "voice" ? "🎤 Message vocal" : msg.text,
+      icon: "https://cdn-icons-png.flaticon.com/512/5968/5968890.png",
+      tag: "chat-msg" // évite les doublons
+    });
+
+    notif.onclick = () => window.focus();
+  }
+}
 
 // ====================== AFFICHAGE MESSAGES ======================
 function listenRoom() {
   const messagesDiv = document.getElementById("messages");
+  if (unsubscribe) unsubscribe();
 
-  if (messageListener) messageListener();
-
-  messageListener = onValue(rooms[currentRoom], (snapshot) => {
+  unsubscribe = onValue(rooms[currentRoom], (snapshot) => {
     messagesDiv.innerHTML = "";
-
-    const data = snapshot.val();
-    if (!data) return;
+    const data = snapshot.val() || {};
 
     Object.values(data)
-      .sort((a, b) => a.time - b.time)
+      .sort((a,b) => a.time - b.time)
       .forEach(msg => {
         const div = document.createElement("div");
         div.className = `message ${msg.name === currentUser.name ? 'sent' : 'received'}`;
@@ -336,7 +326,7 @@ function listenRoom() {
           div.innerHTML = `
             <div class="name" style="color:${msg.color}">${msg.name}</div>
             ${msg.text}
-            <button class="speak-btn" onclick="speak('${msg.text.replace(/'/g, "\\'").replace(/"/g, '\\"')}')">🔊</button>
+            <button class="speak-btn" onclick="speak('${msg.text.replace(/'/g,"\\'")}')">🔊</button>
           `;
         } else if (msg.type === "voice") {
           div.innerHTML = `
@@ -345,6 +335,11 @@ function listenRoom() {
           `;
         }
         messagesDiv.appendChild(div);
+
+        // Notification seulement pour les messages des autres
+        if (msg.name !== currentUser.name) {
+          showNotification(msg);
+        }
       });
 
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
