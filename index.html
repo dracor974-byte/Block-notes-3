@@ -3,20 +3,32 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-
-<title>Chat Omori PWA</title>
+<title>Omori Chat App</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#6c4cff">
 
 <style>
+
+/* 🌌 BACKGROUND VIDEO */
+#bgvideo{
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  z-index:-1;
+  filter:brightness(0.35) saturate(1.3) blur(1px);
+}
+
 body{
   margin:0;
   font-family:Arial;
-  background:#0b0b14;
   color:#f3f0ff;
 }
 
+/* APP */
 #app{
   display:flex;
   height:100vh;
@@ -25,7 +37,8 @@ body{
 /* SIDEBAR */
 #sidebar{
   width:220px;
-  background:linear-gradient(180deg,#1a1333,#0f0f1a);
+  background:rgba(26,19,51,0.85);
+  backdrop-filter:blur(10px);
   padding:12px;
   display:flex;
   flex-direction:column;
@@ -34,9 +47,8 @@ body{
 }
 
 .title{
-  font-weight:bold;
   color:#b69cff;
-  margin-bottom:10px;
+  font-weight:bold;
 }
 
 /* CHANNELS */
@@ -45,7 +57,6 @@ body{
   border-radius:10px;
   cursor:pointer;
   background:#1b1630;
-  color:#d9d2ff;
   transition:0.2s;
 }
 
@@ -55,7 +66,6 @@ body{
 
 .channel.active{
   background:#6c4cff;
-  color:white;
 }
 
 /* CHAT */
@@ -67,11 +77,10 @@ body{
 
 #top{
   height:50px;
-  background:#1a1333;
+  background:rgba(26,19,51,0.9);
   display:flex;
   align-items:center;
   padding:0 15px;
-  font-weight:bold;
   border-bottom:1px solid #2a1f4a;
 }
 
@@ -102,7 +111,6 @@ body{
   align-self:flex-start;
 }
 
-/* NAME */
 .name{
   font-size:12px;
   opacity:0.8;
@@ -113,7 +121,7 @@ body{
 #input{
   display:flex;
   padding:10px;
-  background:#1a1333;
+  background:rgba(26,19,51,0.9);
   border-top:1px solid #2a1f4a;
 }
 
@@ -143,7 +151,7 @@ button{
   align-items:center;
   justify-content:center;
   height:100vh;
-  background:radial-gradient(circle,#1a1333,#0b0b14);
+  background:rgba(0,0,0,0.6);
 }
 
 .card{
@@ -155,10 +163,16 @@ button{
   border-radius:12px;
   cursor:pointer;
 }
+
 </style>
 </head>
 
 <body>
+
+<!-- 🌌 VIDEO BACKGROUND -->
+<video autoplay muted loop id="bgvideo">
+  <source src="https://cdn.pixabay.com/video/2022/07/02/12598-720p.mp4" type="video/mp4">
+</video>
 
 <!-- LOGIN -->
 <div id="login">
@@ -185,11 +199,17 @@ button{
 
 <div id="input">
   <textarea id="text"></textarea>
+
+  <input type="file" id="img" accept="image/*" hidden>
+  <input type="file" id="vid" accept="video/*" hidden>
+
+  <button onclick="document.getElementById('img').click()">📷</button>
+  <button onclick="document.getElementById('vid').click()">🎥</button>
+
   <button onclick="send()">Send</button>
 </div>
 
 </div>
-
 </div>
 
 <script type="module">
@@ -261,12 +281,56 @@ window.switchRoom=(r,el)=>{
   listen();
 };
 
-/* SEND */
+/* UPLOAD (Cloudinary requis) */
+const CLOUD="TON_CLOUD";
+const PRESET="unsigned";
+
+async function upload(file){
+  let form=new FormData();
+  form.append("file",file);
+  form.append("upload_preset",PRESET);
+
+  let res=await fetch(`https://api.cloudinary.com/v1_1/${CLOUD}/upload`,{
+    method:"POST",
+    body:form
+  });
+
+  let data=await res.json();
+  return data.secure_url;
+}
+
+/* MEDIA */
+document.getElementById("img").onchange=async(e)=>{
+  let url=await upload(e.target.files[0]);
+
+  push(rooms[current],{
+    type:"img",
+    url,
+    name:me.name,
+    color:me.color,
+    time:Date.now()
+  });
+};
+
+document.getElementById("vid").onchange=async(e)=>{
+  let url=await upload(e.target.files[0]);
+
+  push(rooms[current],{
+    type:"video",
+    url,
+    name:me.name,
+    color:me.color,
+    time:Date.now()
+  });
+};
+
+/* SEND TEXT */
 window.send=()=>{
   let text=document.getElementById("text").value;
   if(!text || !me)return;
 
   push(rooms[current],{
+    type:"text",
     text,
     name:me.name,
     color:me.color,
@@ -276,16 +340,14 @@ window.send=()=>{
   document.getElementById("text").value="";
 };
 
-/* VOIX */
+/* VOICE */
 window.speak=(text,btn)=>{
   window.speechSynthesis.cancel();
 
   let u=new SpeechSynthesisUtterance(text);
   u.lang="fr-FR";
-  u.rate=0.95;
 
   btn.innerText="⏹";
-
   u.onend=()=>btn.innerText="🔊";
 
   speechSynthesis.speak(u);
@@ -304,15 +366,27 @@ function listen(){
 
       const isMe = me && m.name===me.name;
 
-      if(!isMe) notify(m.name,m.text);
+      if(!isMe) notify(m.name,m.text || "media");
+
+      let content="";
+
+      if(m.type==="img"){
+        content=`<img src="${m.url}" style="max-width:200px;border-radius:10px"/>`;
+      }
+      else if(m.type==="video"){
+        content=`<video src="${m.url}" controls style="max-width:220px;border-radius:10px"></video>`;
+      }
+      else{
+        content=m.text;
+      }
 
       let div=document.createElement("div");
       div.className="msg "+(isMe?"me":"other");
 
       div.innerHTML=`
         <div class="name">${m.name}</div>
-        ${m.text}
-        <button onclick="speak('${m.text}',this)">🔊</button>
+        ${content}
+        ${m.text ? `<button onclick="speak('${m.text}',this)">🔊</button>` : ""}
       `;
 
       box.appendChild(div);
