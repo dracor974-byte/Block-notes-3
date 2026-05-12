@@ -3,15 +3,22 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Chat Worlds Pro</title>
+<title>Chat Color Live</title>
 
 <style>
 body{
   margin:0;
   font-family:Arial;
-  background: linear-gradient(120deg,#0a0a0a,#111,#0a0a0a);
   color:white;
-  overflow-x:hidden;
+  background: linear-gradient(-45deg,#0a0a0a,#111,#1a1a1a,#0a0a0a);
+  background-size:400% 400%;
+  animation: bg 10s ease infinite;
+}
+
+@keyframes bg{
+  0%{background-position:0% 50%}
+  50%{background-position:100% 50%}
+  100%{background-position:0% 50%}
 }
 
 /* LOGIN */
@@ -31,73 +38,13 @@ body{
   cursor:pointer;
   width:180px;
   text-align:center;
+  transition:0.2s;
 }
+.card:hover{transform:scale(1.05)}
 
 /* APP */
 #app{display:none;padding:12px}
 
-/* ROOMS */
-.roomBar{
-  display:flex;
-  gap:10px;
-  overflow-x:auto;
-  padding:10px 0;
-}
-
-.roomBtn{
-  padding:12px 16px;
-  border-radius:999px;
-  border:none;
-  cursor:pointer;
-  font-weight:bold;
-  transition:0.2s;
-  white-space:nowrap;
-  opacity:0.7;
-}
-
-.roomBtn.active{
-  transform:scale(1.08);
-  opacity:1;
-}
-
-.serie{background:#ff4d4d;color:white}
-.jeux{background:#4ECDC4;color:black}
-.futur{background:#FFD93D;color:black}
-
-/* CHAT */
-#notes{
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-}
-
-.note{
-  max-width:80%;
-  padding:10px;
-  border-radius:14px;
-  animation:pop 0.2s ease;
-}
-
-@keyframes pop{
-  from{transform:scale(0.9);opacity:0}
-  to{transform:scale(1);opacity:1}
-}
-
-/* BUBBLES */
-.me{
-  background:#4ECDC4;
-  color:black;
-  align-self:flex-end;
-  border-bottom-right-radius:4px;
-}
-
-.other{
-  background:#1a1a1a;
-  align-self:flex-start;
-  border-bottom-left-radius:4px;
-}
-
-/* INPUT */
 textarea{
   width:100%;
   padding:10px;
@@ -107,26 +54,33 @@ textarea{
   border-radius:10px;
 }
 
-/* VOICE HOLD */
-#hold{
-  background:#222;
+/* MESSAGE */
+.note{
   padding:12px;
-  margin-top:8px;
-  border-radius:10px;
-  text-align:center;
-  user-select:none;
+  margin:10px 0;
+  border-radius:14px;
+  animation:pop 0.2s ease;
+  box-shadow:0 0 10px rgba(255,255,255,0.05);
 }
 
-#hold.active{
-  background:#4ECDC4;
-  color:black;
+@keyframes pop{
+  from{transform:scale(0.95);opacity:0}
+  to{transform:scale(1);opacity:1}
 }
 
-/* AUDIO */
-audio{
-  width:100%;
-  margin-top:6px;
+/* VOICE BUTTON */
+.voice{
+  margin-left:8px;
+  cursor:pointer;
+  border:none;
+  background:transparent;
+  color:white;
 }
+
+/* LOGIN COLORS */
+.draco{color:#ff4d4d}
+.emer{color:#4ECDC4}
+.liam{color:#FFD93D}
 </style>
 </head>
 
@@ -135,9 +89,10 @@ audio{
 <!-- LOGIN -->
 <div id="login">
   <h2>Choisis ton perso</h2>
-  <div class="card" onclick="login('user1')">🔥 Draco</div>
-  <div class="card" onclick="login('user2')">💎 Emer</div>
-  <div class="card" onclick="login('user3')">⚡ Liam</div>
+
+  <div class="card" onclick="login('draco')">🔥 Draco</div>
+  <div class="card" onclick="login('emer')">💎 Emer</div>
+  <div class="card" onclick="login('liam')">⚡ Liam</div>
 </div>
 
 <!-- APP -->
@@ -145,17 +100,8 @@ audio{
 
 <h3 id="user"></h3>
 
-<div class="roomBar">
-  <button class="roomBtn serie active" onclick="switchRoom('serie',this)">🎬 Série</button>
-  <button class="roomBtn jeux" onclick="switchRoom('jeux',this)">🎮 Jeux</button>
-  <button class="roomBtn futur" onclick="switchRoom('futur',this)">🚀 Futur</button>
-</div>
-
 <textarea id="text" placeholder="Écris un message..."></textarea>
-
 <button onclick="send()">Envoyer</button>
-
-<div id="hold">🎤 Appuie pour enregistrer</div>
 
 <div id="notes"></div>
 
@@ -171,134 +117,92 @@ const app = initializeApp({
 });
 
 const db = getDatabase(app);
-
-const rooms={
-  serie:ref(db,"serie"),
-  jeux:ref(db,"jeux"),
-  futur:ref(db,"futur")
-};
+const notesRef = ref(db,"notes");
 
 const USERS={
-  user1:{name:"Draco",color:"#ff4d4d"},
-  user2:{name:"Emer",color:"#4ECDC4"},
-  user3:{name:"Liam",color:"#FFD93D"}
+  draco:{name:"Draco",color:"#ff4d4d"},
+  emer:{name:"Emer",color:"#4ECDC4"},
+  liam:{name:"Liam",color:"#FFD93D"}
 };
 
 let me=null;
-let room="serie";
-let rec,chunks=[];
 
 /* LOGIN */
 window.login=(id)=>{
   me={id,...USERS[id]};
+
   document.getElementById("login").style.display="none";
   document.getElementById("app").style.display="block";
-  document.getElementById("user").innerHTML=me.name;
-  listen();
-};
 
-/* ROOM */
-window.switchRoom=(r,b)=>{
-  room=r;
-  document.querySelectorAll(".roomBtn").forEach(x=>x.classList.remove("active"));
-  b.classList.add("active");
-  listen();
+  document.getElementById("user").innerHTML=
+    `<span style="color:${me.color}">${me.name}</span>`;
 };
 
 /* SEND */
 window.send=()=>{
-  let t=document.getElementById("text").value;
-  if(!t)return;
+  let text=document.getElementById("text").value;
+  if(!text)return;
 
-  push(rooms[room],{
-    text:t,
+  push(notesRef,{
+    text,
     name:me.name,
-    id:me.id,
     color:me.color,
+    id:me.id,
     time:Date.now()
   });
 
   document.getElementById("text").value="";
 };
 
-/* 🔔 NOTIF CLEAN */
-function notify(title,body){
-  if(Notification.permission==="granted"){
-    new Notification(title,{body});
-    navigator.vibrate?.(150);
-  }
-}
+/* 🔊 VOICE PLUS HUMAIN */
+window.speak=(text,btn)=>{
+  window.speechSynthesis.cancel();
 
-/* 🔊 LISTEN */
-function listen(){
-  onValue(rooms[room],snap=>{
-    let data=snap.val();
-    let box=document.getElementById("notes");
-    box.innerHTML="";
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang="fr-FR";
+  u.rate=0.9;
+  u.pitch=1.1;
 
-    if(!data)return;
+  const voices=speechSynthesis.getVoices();
+  const fr=voices.find(v=>v.lang.includes("fr"));
 
-    Object.values(data).reverse().forEach(n=>{
+  if(fr)u.voice=fr;
 
-      const isMe=n.id===me.id;
+  btn.innerText="⏹";
 
-      if(!isMe && Math.random()<0.3){
-        notify("💬 "+n.name,n.text||"🎤 vocal");
-      }
+  u.onend=()=>btn.innerText="🔊";
 
-      let div=document.createElement("div");
-      div.className="note "+(isMe?"me":"other");
+  speechSynthesis.speak(u);
+};
 
-      div.innerHTML=`
-        <b style="color:${n.color}">${n.name}</b><br/>
-        ${n.text||""}
-        ${n.voice?`<audio controls src="${n.voice}"></audio>`:""}
-      `;
+/* CHAT LIVE */
+onValue(notesRef,snap=>{
+  let data=snap.val();
+  let box=document.getElementById("notes");
+  box.innerHTML="";
 
-      box.appendChild(div);
-    });
+  if(!data)return;
+
+  Object.values(data).reverse().forEach(n=>{
+
+    let div=document.createElement("div");
+    div.className="note";
+
+    div.style.background=`linear-gradient(135deg, ${n.color}22, #111)`;
+    div.style.border=`1px solid ${n.color}55`;
+
+    div.innerHTML=`
+      <b style="color:${n.color};text-shadow:0 0 10px ${n.color}">
+        ${n.name}
+      </b><br/>
+
+      ${n.text}
+      <button class="voice" onclick="speak('${n.text}',this)">🔊</button>
+    `;
+
+    box.appendChild(div);
   });
-}
-
-/* 🎤 HOLD RECORD */
-let hold=document.getElementById("hold");
-
-hold.addEventListener("mousedown",start);
-hold.addEventListener("mouseup",stop);
-hold.addEventListener("touchstart",start);
-hold.addEventListener("touchend",stop);
-
-async function start(){
-  hold.classList.add("active");
-
-  let stream=await navigator.mediaDevices.getUserMedia({audio:true});
-  rec=new MediaRecorder(stream);
-  chunks=[];
-
-  rec.start();
-  rec.ondataavailable=e=>chunks.push(e.data);
-}
-
-function stop(){
-  hold.classList.remove("active");
-  rec.stop();
-
-  rec.onstop=()=>{
-    let blob=new Blob(chunks,{type:"audio/webm"});
-    let r=new FileReader();
-
-    r.readAsDataURL(blob);
-    r.onloadend=()=>{
-      push(rooms[room],{
-        voice:r.result,
-        name:me.name,
-        id:me.id,
-        color:me.color,
-        time:Date.now()
-      });
-    };
-  };
-}
+});
 
 </script>
 </body>
